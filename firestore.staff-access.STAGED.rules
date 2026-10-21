@@ -1,0 +1,20 @@
+// STAGED ONLY. DO NOT DEPLOY UNTIL APPROVED AND TESTED.
+// One self-readable authorization record per approved staff Firebase UID.
+// All client writes to access records are blocked. All student data remains blocked.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /staffAccess/{uid} {
+      allow get: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == resource.data.email
+        && resource.data.active == true
+        && resource.data.role in ['ram_admin', 'staff'];
+      allow list, create, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
