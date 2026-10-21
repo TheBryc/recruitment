@@ -1,23 +1,19 @@
-# BRYC Admissions — Version 18 / RAM Workspace
+# BRYC Admissions — Version 19 (fictional-data persistence test)
 
-Built on Version 17. The public Admissions website and public form logic are unchanged.
+This ZIP includes the public Version 15 application, approved Version 18 fictional RAM workspace, working Google authentication and authorization, and a new **opt-in Firestore sandbox**. The public application still collects nothing.
 
-## New internal workspace
-- Authorized Google sign-in + UID-based Firestore `staffAccess` verification inherited from V17.
-- Recruitment dashboard, pipeline counts, filters, fictional prospects and applications, and review drawer.
-- In-page demo status/decision changes; follow-up completion; school directory search.
-- Fellows tab remains intentionally empty until vetted migration.
+## Strict boundaries
+- Do not upload real students, documents, guardian information, or confidential data.
+- `firestore.rules` remains the original deny-all illustrative file from earlier versions. **It does NOT reflect current live rules. Never publish it.**
+- `firestore.ram-sandbox.STAGED.rules` is a proposed *full replacement* preserving staffAccess and denying all real data. It is not deployed and must be audited and tested before publishing.
+- Only a verified `@thebryc.org` user with a matching, active, UID-bound `ram_admin` record can read and write their own sandbox.
+- Seed fixture insertion requires an explicit click. Other staff cannot access the sandbox. No public database submissions are enabled.
+- The sandbox is account-scoped, not a shared production admissions database. It is not suitable for actual student records.
 
-## Security boundary (important)
-**All demo records are hard-coded fictional objects in `ram-workspace.js`. They are NOT Firestore documents.** No sample student records are transmitted, saved, or uploaded. Changing a status resets on refresh. Public inquiry/application submissions remain preview-only and disabled. `firestore.rules` is a reference file, not a deployment action. Do not overwrite your deployed, tested `staffAccess` rules with any zip rule file.
+## Intended sequence
+1. Update the GitHub development branch with extracted contents (do not upload real data or any keys).
+2. Confirm public site and existing staff login still work. With existing deployed rules, the RAM dashboard will continue in session-only mode.
+3. Use `SECURITY_TEST_PLAN.md` to audit the staged rules and test Firestore permissions; do NOT publish before passing all tests.
+4. After independently testing and publishing the approved replacement policy, reload staff workspace, click **Initialize fictional test records**, change one sample decision and reload to verify persistence.
 
-Real record authorization is NOT implemented. The HTML and hardcoded fictional data are present in a public repository; login hides their UI but is not protection for secrets. Never put genuine student data in client-side code. Authentication and database authorization must be enforced in Firestore rules before any real-data features are added.
-
-## Deploy
-1. Unzip and upload the **contents** to GitHub `development/recruitment-hub` branch; overwrite matching files.
-2. GitHub Pages should serve that branch's root; allow deployment to complete.
-3. Open the GitHub Pages HTTPS URL, Staff Access, sign in with your previously-approved BRYC Google account.
-4. Try filters, review drawers, changing demo status, completing a demo follow-up. Refresh and verify changes reset.
-5. Sign out and verify the workspace is hidden.
-
-**Cost:** No added paid service; GitHub Pages and Firebase Spark remain in use.
+No Cloud Functions, Storage, Blaze billing, or service account is used. Firebase Spark quotas and availability limits still apply.

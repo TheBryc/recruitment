@@ -1,34 +1,26 @@
-# Security test plan — V16 (no real student information)
+# V19 sandbox permission test plan (do not publish without passing)
 
-## Phase A — existing live deny-all policy
-Do not publish new rules for this phase. In Firestore > Rules > Rules Playground, verify GET and CREATE denied, each with authentication off and on. BRYC completed these four tests.
+Test the STAGED rules in Rules Playground (or the Firebase Emulator Suite). Use an existing **fictional** demo document fixture and a valid `staffAccess/{uid}` with active=true, role=ram_admin, exact verified organization email.
 
-## Phase B — test the staged staff access policy BEFORE deploying
-Use Rules Playground against `firestore.staff-access.STAGED.rules` if supported, or the Firebase Emulator Suite. Create **fictional** authorization fixtures with UIDs and BRYC email addresses.
+Expected **ALLOW**:
+1. Authenticated approved RAM admin `get` their own `/staffAccess/{uid}`.
+2. Approved RAM admin `list` their own `/ramSandbox/{uid}/prospects` (also applications/tasks).
+3. Approved RAM admin `create` a new `DEMO-P999` prospect with all expected demo fields and `isDemo: true`.
+4. Approved RAM admin `update` ONLY the allowed `status` on their existing demo prospect.
+5. Approved RAM admin `update` ONLY `done` on their existing demo task.
 
-Expected permissions:
-- Unauthenticated GET `/staffAccess/uid-A`: denied
-- Signed-in uid-B GET `/staffAccess/uid-A`: denied
-- uid-A GET `/staffAccess/uid-A` when document absent: denied
-- uid-A GET their record with active=false: denied
-- uid-A GET their record with email mismatch: denied
-- uid-A GET their record with role not ram_admin/staff: denied
-- uid-A GET their active record, matching verified BRYC email and permitted role: allowed
-- Any client attempts to list, create, edit, delete staffAccess: denied
-- Any user including approved staff tries read or write `/fellows/example`, `/applications/example`, `/inquiries/example`: denied
+Expected **DENY**:
+6. Signed-out read/write on sandbox.
+7. Unapproved / inactive BRYC user read or write sandbox.
+8. A `staff` role (not `ram_admin`) read or write sandbox.
+9. Approved admin read another UID's sandbox.
+10. Anyone create/update/delete `staffAccess` through client SDK.
+11. Approved admin write a non-demo ID, missing `isDemo`, or a name without fictional indicator.
+12. Approved admin change any prospect field OTHER THAN status (e.g. name, school).
+13. Approved admin delete sandbox document.
+14. Approved admin read/write `/applications/test`, `/fellows/test`, `/incomeVerification/test`, `/inquiries/test`.
+15. Unauthenticated reader any `/staffAccess/{uid}`.
 
-## Before activating staff-only access
-1. Confirm Spark plan (no linked billing).
-2. Test all staged rules above, and have BRYC staff review the authorization policy.
-3. Deploy rules **only after** testing; previously deployed deny-all is still the safest default.
-4. In Authentication > Users, obtain the approved tester's UID (do not share it publicly).
-5. Manually create Firestore document `staffAccess/{UID}` via Firebase console with **active (boolean) true**, **email (string)** matching the Google account and **role (string)** `ram_admin` or `staff`. Console administrative access must be restricted.
-6. Add the app's GitHub Pages domain to Authentication > Settings > Authorized domains.
-7. Staff access check should unlock ONLY fictional dashboard UI. No Fellow or application records are connected.
+**Caution:** A simple Rules Playground simulation of CREATE must include request fields and authenticating claims. Emulator rules unit tests are preferred for verifying these exact outcomes. No server-side access is attempted. Do not deploy live rules based on a handful of Playground cases alone.
 
-## Scope and limitations
-- The Google domain hint is a UX hint only, not a security policy.
-- This authorization is verified via Firestore rules, not trusted from editable website JavaScript.
-- The browser contains public layout markup and placeholder metrics; hiding it is only a UI measure. Future record queries require Firestore rules for each collection.
-- Authentication does not prove production readiness. Threat modeling, browser testing, least privilege, audit strategy, spam defense and confidential document uploads remain unresolved.
-- Signing in uses browser session persistence managed by Firebase Auth; applications remain no-save.
+After deployment, test with synthetic records only. Firestore reads/writes persist only after the appropriate permissions are deployed. Never enable public submissions until separate rules, abuse controls, data protection review, and secure document collection have been completed.

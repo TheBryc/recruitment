@@ -101,3 +101,8 @@
 @media(max-width:1090px){.workspace-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-two-column{grid-template-columns:1fr}}
 @media(max-width:850px){.workspace-v18{grid-template-columns:1fr}.workspace-v18 .staff-side{padding:18px}.workspace-v18 .staff-side h2,.workspace-side-intro{display:none}.workspace-nav{display:flex;overflow-x:auto}.workspace-v18 .staff-link{white-space:nowrap;width:auto;flex-shrink:0}.workspace-side-bottom{display:none}.workspace-page-header{flex-direction:column}.workspace-main{padding:22px 15px}.workspace-metrics{gap:10px}.workspace-metric{padding:17px}.workspace-neutral-tag{white-space:normal}}
 @media(max-width:520px){.workspace-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-metric strong{font-size:2rem}.workspace-toolbar,.workspace-panel-head{align-items:flex-start;flex-direction:column}.workspace-panel{padding:18px}.ws-task{padding:14px}.workspace-auth{align-items:flex-start}.workspace-detail{padding:20px}}
+
+/* V19: safe sandbox status bar */
+.workspace-cloud-bar{display:flex;gap:18px;justify-content:space-between;align-items:center;padding:15px 18px;margin:0 0 20px;border:1px solid #ddd;border-radius:12px;background:#fafafa}
+.workspace-cloud-bar strong{display:block;font-size:13px;color:#191919}.workspace-cloud-bar small{display:block;color:#656565;font-size:12px;margin-top:4px;max-width:720px}
+.workspace-cloud-bar button{flex-shrink:0;white-space:normal}@media(max-width:670px){.workspace-cloud-bar{flex-direction:column;align-items:stretch}}

@@ -16,11 +16,15 @@ let lastCheck = 0;
 
 function message(text, kind = '') { status.textContent = text; status.className = kind; }
 function lock(text, kind = '') {
+  window.BRYCStaffAuth=null;
+  window.dispatchEvent(new CustomEvent('bryc:workspace-locked'));
   workspace.hidden = true;
   loginScreen.hidden = false;
   message(text, kind);
 }
 function unlock(user, staff) {
+  window.BRYCStaffAuth={uid:user.uid,role:staff.role};
+  window.dispatchEvent(new CustomEvent('bryc:workspace-authorized', {detail:window.BRYCStaffAuth}));
   workspace.hidden = false;
   loginScreen.hidden = true;
   // Safe to show only because these are static, fabricated placeholder cards.

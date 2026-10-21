@@ -37,15 +37,19 @@
 <button class="staff-link" data-staff-tab="schools" type="button">Schools</button>
 <button class="staff-link" data-staff-tab="fellows" type="button">Fellows</button>
 </nav>
-<div class="workspace-side-bottom"><strong>Preview environment</strong><span>Fictional records only</span><span>No changes are saved</span></div>
+<div class="workspace-side-bottom"><strong>Preview environment</strong><span>Fictional records only</span><span id="ws-storage-hint">Session-only until sandbox approved</span></div>
 </aside>
 <div class="staff-main workspace-main">
 <div class="workspace-page-header">
 <div><div class="section-kicker">BRYC / INTERNAL WORKSPACE</div><h1 id="staff-heading">Recruitment overview</h1><p id="staff-description">Your recruitment pipeline, priorities, and next actions.</p></div>
-<span class="demo-pill">● DEMO DATA / NO SAVING</span>
+<span class="demo-pill">● FICTIONAL TEST DATA</span>
 </div>
 <section class="auth-panel workspace-auth"><div><strong>Authorized BRYC team member</strong><p id="auth-status" role="status">Checking authorization…</p></div><button class="btn btn-secondary" id="auth-logout" type="button">Sign out</button></section>
 <div aria-live="polite" class="workspace-feedback" id="workspace-feedback" role="status"></div>
+<div class="workspace-cloud-bar" aria-label="Fictional test data storage">
+ <div><strong id="workspace-storage-status">Session-only demo</strong><small id="workspace-storage-help">Changes currently reset when the page is refreshed. The Firestore test sandbox is not connected.</small></div>
+ <button type="button" id="workspace-seed-cloud" class="btn btn-secondary" hidden disabled>Initialize fictional test records</button>
+</div>
 <section aria-label="Overview dashboard" class="staff-tab active" id="staff-overview">
 <div class="workspace-metrics" id="workspace-metrics"></div>
 <div class="workspace-two-column">
@@ -84,4 +88,4 @@
 </div>
 <div class="workspace-detail-backdrop" hidden="" id="workspace-detail-backdrop"></div>
 <aside aria-label="Fictional record details" aria-modal="true" class="workspace-detail" hidden="" id="workspace-detail" role="dialog"><div class="workspace-detail-head"><span class="workspace-subtitle">FICTIONAL TEST RECORD</span><button aria-label="Close record details" class="workspace-icon-button" id="workspace-detail-close">×</button></div><div id="workspace-detail-content"></div></aside>
-</div></section></main><footer><span>BATON ROUGE YOUTH COALITION · ADMISSIONS</span><span>Prototype • For review only • Not accepting submissions</span></footer><script src="script.js"></script><script src="firebase-integration.js" type="module"></script><script src="ram-workspace.js"></script></body></html>
+</div></section></main><footer><span>BATON ROUGE YOUTH COALITION · ADMISSIONS</span><span>Prototype • For review only • Not accepting submissions</span></footer><script src="script.js"></script><script src="firebase-integration.js" type="module"></script><script src="ram-workspace.js"></script><script src="ram-sandbox.js" type="module"></script></body></html>

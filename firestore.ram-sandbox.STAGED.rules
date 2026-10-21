@@ -1,0 +1,65 @@
+// REVIEW + TEST ONLY — NOT DEPLOYED. All production student data DENIED.
+// Test ONLY with fabricated, clearly named records. Requires approved RAM administrator.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verifiedUser() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.matches('.*@thebryc[.]org');
+    }
+    function authorizedAdmin(uid) {
+      return verifiedUser() && request.auth.uid == uid
+        && exists(/databases/$(database)/documents/staffAccess/$(uid))
+        && get(/databases/$(database)/documents/staffAccess/$(uid)).data.active == true
+        && get(/databases/$(database)/documents/staffAccess/$(uid)).data.role == 'ram_admin'
+        && get(/databases/$(database)/documents/staffAccess/$(uid)).data.email == request.auth.token.email;
+    }
+    function commonDemo(id) {
+      return request.resource.data.isDemo == true
+        && request.resource.data.id == id
+        && id.matches('DEMO-[PAT][0-9]{2,3}')
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 70
+        && request.resource.data.name.matches('.*(Sample|Example|Placeholder|Test|Fiction).*');
+    }
+    match /staffAccess/{uid} {
+      allow get: if verifiedUser() && request.auth.uid == uid
+        && resource.data.email == request.auth.token.email
+        && resource.data.active == true
+        && resource.data.role in ['ram_admin','staff'];
+      allow list, create, update, delete: if false;
+    }
+    match /ramSandbox/{uid}/prospects/{id} {
+      allow get, list: if authorizedAdmin(uid);
+      allow create: if authorizedAdmin(uid) && commonDemo(id)
+        && request.resource.data.keys().hasOnly(['id','name','school','grade','source','status','action','due','isDemo'])
+        && request.resource.data.status in ['New','Contacted','Application invited','Applied'];
+      allow update: if authorizedAdmin(uid) && resource.data.isDemo == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['New','Contacted','Application invited','Applied'];
+      allow delete: if false;
+    }
+    match /ramSandbox/{uid}/applications/{id} {
+      allow get, list: if authorizedAdmin(uid);
+      allow create: if authorizedAdmin(uid) && commonDemo(id)
+        && request.resource.data.keys().hasOnly(['id','name','school','grade','date','status','year','isDemo'])
+        && request.resource.data.status in ['Received','Under review','Decision ready','Admitted','Waitlisted - Capacity','Denied'];
+      allow update: if authorizedAdmin(uid) && resource.data.isDemo == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['Received','Under review','Decision ready','Admitted','Waitlisted - Capacity','Denied'];
+      allow delete: if false;
+    }
+    match /ramSandbox/{uid}/tasks/{id} {
+      allow get, list: if authorizedAdmin(uid);
+      allow create: if authorizedAdmin(uid) && commonDemo(id)
+        && request.resource.data.keys().hasOnly(['id','name','action','priority','owner','due','done','isDemo'])
+        && request.resource.data.done is bool;
+      allow update: if authorizedAdmin(uid) && resource.data.isDemo == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done'])
+        && request.resource.data.done is bool;
+      allow delete: if false;
+    }
+    match /{document=**} {allow read, write: if false;}
+  }
+}
