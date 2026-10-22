@@ -40,12 +40,12 @@ if (!validConfig) {
   lock('SETUP NEEDED: Add the public Firebase web app configuration to firebase-config.js. Sign-in is disabled until then.');
 } else {
   try {
-    const [{initializeApp}, authSdk, dbSdk] = await Promise.all([
+    const [{initializeApp, getApps, getApp}, authSdk, dbSdk] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
     ]);
-    const app = initializeApp(firebaseConfig);
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(app);
     const db = dbSdk.getFirestore(app);
     currentAuth = auth; signOutFn = authSdk.signOut;
@@ -80,8 +80,9 @@ if (!validConfig) {
         unlock(user, data);
       } catch (err) {
         if (attempt !== lastCheck) return;
-        // With the existing deny-all production rules this is the expected result.
-        lock('Access remains locked: Firestore did not authorize the staff access check. The deny-all rules may still be active.', 'error');
+        // Rules reject reads of a missing staffAccess record, so an unapproved account lands here too.
+        if (err?.code === 'permission-denied') lock('Access denied: this account has not been approved for the RAM Workspace. Contact the RAM administrator if you need access.', 'error');
+        else lock('Could not verify staff access. Check your connection and try again.', 'error');
       }
     });
   } catch(e) { lock('Firebase SDK could not load. Check your network and public Firebase configuration.', 'error'); }
