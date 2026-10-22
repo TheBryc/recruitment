@@ -4,8 +4,33 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});}
 $$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 if(location.hash==='#staff')view('staff');
-const inquiry=$('#inquiry-form');function changeRole(){let student=$('input[name="role"]:checked')?.value==='student';let field=$('#student-fields');field.hidden=!student;field.querySelectorAll('input,select').forEach(x=>{x.disabled=!student;if(x.classList.contains('school-search'))return; if(x.name==='school')x.required=student;else if(x.name==='inquiryOtherSchool')x.required=student&&x.closest('.other-school')?.hidden===false;else x.required=student});$('#email-label').textContent=student?'Personal email address':'Email address';$('#email-hint').hidden=!student}$$('input[name="role"]').forEach(n=>n.addEventListener('change',changeRole));
-inquiry?.addEventListener('submit',e=>{e.preventDefault();$('#inquiry-message').textContent='Preview only. Nothing was submitted or saved.'});
+// Interest form: one submission captures the student and a parent or guardian so staff can match them.
+const inquiry=$('#inquiry-form');
+function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
+ inquiry.querySelector('.household').classList.toggle('guardian-first',guardian);
+ inquiry.querySelector('[data-student-title]').textContent=guardian?'Your student':'Your information';
+ inquiry.querySelector('[data-guardian-title]').textContent=guardian?'Your information':'Your parent or guardian';
+ inquiry.querySelector('[data-relationship-label]').textContent=guardian?'Your relationship to the student':'Relationship to you';}
+$$('input[name="submitterRole"]').forEach(n=>n.addEventListener('change',changeRole));
+const relationship=inquiry?.elements.namedItem('guardianRelationship');
+function syncRelationship(){const other=relationship.value==='Other',box=$('#relationship-other');box.hidden=!other;box.querySelector('input').required=other;if(!other)box.querySelector('input').value='';}
+relationship?.addEventListener('change',syncRelationship);
+function inquiryErrors(){
+ inquiry.querySelectorAll('.field-error').forEach(e=>e.remove());inquiry.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
+ let first=null;const fail=(el,msg)=>{el.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent=msg;el.insertAdjacentElement('afterend',n);first??=el;};
+ inquiry.querySelectorAll('input,select').forEach(el=>{if(el.closest('[hidden]')||el.type==='radio'||el.classList.contains('school-search')||el.classList.contains('school-select'))return;
+  const v=el.value.trim();
+  if(el.required&&!v)fail(el,'This question is required.');
+  else if(v&&el.type==='email'&&el.validity.typeMismatch)fail(el,'Please enter a valid email address.');
+  else if(v&&el.type==='tel'&&v.replace(/\D/g,'').length<10)fail(el,'Please enter a 10-digit phone number.');});
+ const school=inquiry.querySelector('[data-school-control="inquiry"]'),sel=school.querySelector('.school-select');
+ if(!sel.value)fail(school.querySelector('.school-search'),'Choose a school from the list, or select “My school isn’t listed.”');
+ else if(sel.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');
+ return first;}
+inquiry?.addEventListener('submit',e=>{e.preventDefault();const first=inquiryErrors();const msg=$('#inquiry-message');
+ if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
+ msg.textContent='Preview only. Nothing was submitted or saved.';});
+$$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
 // schools.json is the single school list for the public form and the staff workspace.
 let schoolList=[];try{const r=await fetch('schools.json');if(r.ok)schoolList=await r.json();}catch(e){}
 
@@ -41,7 +66,7 @@ function initSchoolCombobox(wrapper){
  syncSchoolControl(wrapper);
 }
 $$('[data-school-control]').forEach(initSchoolCombobox);
-changeRole();
+if(inquiry){changeRole();syncRelationship();}
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');
 function updateYear(){

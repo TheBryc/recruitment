@@ -80,6 +80,7 @@ a{color:var(--ink)}
 
 /* Home: connect */
 .connect{display:grid;grid-template-columns:.9fr 1.1fr;gap:64px;align-items:start}
+.connect-copy{position:sticky;top:100px}
 .connect-copy p{color:var(--muted)}
 .connect-aside{margin-top:36px;padding-top:24px;border-top:1px solid var(--line)}
 .connect-aside strong{display:block;margin-bottom:4px}
@@ -103,6 +104,14 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .role-choice .choice:has(input:checked){border-color:var(--ink);background:var(--surface)}
 .role-choice .choice input{margin:0}
 .student-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+.household{display:flex;flex-direction:column;gap:8px}
+.household.guardian-first #inquiry-guardian{order:-1}
+.household-part{margin:8px 0 6px;padding-top:18px;border-top:1px solid var(--line)}
+.part-title{font-size:1.05rem;font-weight:700;margin-bottom:2px}
+.optional{font-weight:400;color:var(--muted);font-size:.88rem}
+#connect{scroll-margin-top:72px}
+.hero-ask{margin:20px 0 0;color:var(--muted);font-size:.95rem}
+.hero-ask a{color:var(--ink);font-weight:600}
 .notice{margin:12px 0;color:var(--pink-text);font-weight:600}
 .notice:empty{display:none}
 
@@ -201,6 +210,7 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
   .offer-grid{grid-template-columns:1fr}
   .steps{grid-template-columns:1fr 1fr;gap:28px 20px}
   .connect{grid-template-columns:1fr;gap:32px}
+  .connect-copy{position:static}
   .inner{padding-top:44px;padding-bottom:64px}
 }
 @media(max-width:600px){
