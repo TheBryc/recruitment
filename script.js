@@ -100,6 +100,9 @@ year.addEventListener('change',updateYear);currentGrade.addEventListener('change
 const relative=app.elements.namedItem('brycRelative');const relativeNames=app.elements.namedItem('relativeNames');
 function syncRelative(){relativeNames.required=relative.checked;relativeNames.closest('label').hidden=!relative.checked;if(!relative.checked)relativeNames.value=''}
 relative.addEventListener('change',syncRelative);syncRelative();
+const appRelationship=app.elements.namedItem('guardianRelationship');
+function syncAppRelationship(){const other=appRelationship.value==='Other',box=$('#app-relationship-other'),input=box.querySelector('input');box.hidden=!other;input.required=other;if(!other)input.value='';}
+appRelationship.addEventListener('change',syncAppRelationship);syncAppRelationship();
 let step=0,steps=$$('.wizard-step');const names=['Student Information','Academic Records','About You','Guardian & Address','Review'];
 function labelFor(el){let label=el.closest('label');let text=label?.querySelector('.question-title')?.textContent||label?.textContent||el.getAttribute('aria-label')||el.name||'This field';return text.trim().replace(/\s+/g,' ').slice(0,90)}
 function clearErrors(){app.querySelectorAll('.field-error').forEach(e=>e.remove());app.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));const n=$('#wizard-notice');if(n)n.textContent=''}
