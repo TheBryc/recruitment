@@ -17,3 +17,11 @@ This ZIP includes the public Version 15 application, approved Version 18 fiction
 4. After independently testing and publishing the approved replacement policy, reload staff workspace, click **Initialize fictional test records**, change one sample decision and reload to verify persistence.
 
 No Cloud Functions, Storage, Blaze billing, or service account is used. Firebase Spark quotas and availability limits still apply.
+
+## Automated rules tests
+`tests/rules.test.mjs` covers every case in `SECURITY_TEST_PLAN.md` (plus the full Initialize batch) against the Firestore emulator. Requires Node and Java.
+
+```
+cd tests && npm install && npm test
+```
+All 21 tests must pass before deploying `firestore.ram-sandbox.STAGED.rules`. `firebase.json` at the root only configures the emulator for these tests.

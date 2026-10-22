@@ -14,6 +14,16 @@ const path=(group)=>collection(db,'ramSandbox',uid,group);
 const setStatus=(title,msg)=>{if(bar)bar.textContent=title;if(hint)hint.textContent=msg;};
 function disable(){session++;uid=null;isActive=false;window.BRYCSandbox={active:false};init.hidden=true;init.disabled=true;window.BRYCWorkspace?.reset();setStatus('Session-only demo','Changes reset on refresh. No Firestore writes are active.');}
 window.BRYCSandbox={active:false};
+// Mirrors the field limits in firestore.ram-sandbox.STAGED.rules.
+const editable={prospects:['status'],applications:['status'],tasks:['done']};
+function activate(){
+  isActive=true;
+  window.BRYCSandbox={active:true,update:async(group,id,changes)=>{
+    if(!uid||!editable[group])throw new Error('Sandbox not active');
+    if(Object.keys(changes).some(k=>!editable[group].includes(k)))throw new Error('Unsupported field');
+    return updateDoc(doc(db,'ramSandbox',uid,group,id),changes);
+  }};
+}
 window.addEventListener('bryc:workspace-locked',disable);
 async function authorize(e){
   const run=++session;uid=e.detail.uid;isActive=false;window.BRYCSandbox={active:false};init.hidden=true;
@@ -29,13 +39,7 @@ async function authorize(e){
     }else if(counts.every(c=>c>0)){
       const rows=Object.fromEntries(groups.map((g,i)=>[g,entries[i].docs.map(x=>x.data())]));
       window.BRYCWorkspace.load(rows);
-      isActive=true;
-      window.BRYCSandbox={active:true,update:async(group,id,changes)=>{
-        if(!uid||!groups.includes(group))throw new Error('Sandbox not active');
-        const allowed={prospects:['status'],applications:['status'],tasks:['done']};
-        if(Object.keys(changes).some(k=>!allowed[group].includes(k)))throw new Error('Unsupported field');
-        return updateDoc(doc(db,'ramSandbox',uid,group,id),changes);
-      }};
+      activate();
       setStatus('Firestore test sandbox connected','Fictional records loaded from Firestore. Status updates are saved securely; refresh to verify persistence.');
     }else{
       setStatus('Incomplete test dataset','Sandbox contains only some record groups. No modifications will be made automatically.');
@@ -63,7 +67,7 @@ init.addEventListener('click',async()=>{
     const entries=await Promise.all(groups.map(g=>getDocs(path(g))));
     if(run!==session)return;
     window.BRYCWorkspace.load(Object.fromEntries(groups.map((g,i)=>[g,entries[i].docs.map(x=>x.data())])));
-    window.BRYCSandbox={active:true,update:async(g,id,changes)=>updateDoc(doc(db,'ramSandbox',uid,g,id),changes)};
+    activate();
     setStatus('Firestore test sandbox connected','Fictional records saved. Update a status and refresh the page to confirm persistence.');
   }catch(e){if(run!==session)return;init.disabled=false;setStatus('Sandbox initialization blocked','No sample records were created. Check staged security rules before retrying.');}
 });
