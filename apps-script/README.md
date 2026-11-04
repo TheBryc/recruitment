@@ -4,7 +4,8 @@
 
 ## What it does
 
-1. The site sends a submission. The script writes it to the matching raw tab: REFERRALS_RAW, INQUIRIES_RAW, or APPLICATIONS_RAW.
+1. The site sends a submission. The script saves it to the matching raw tab (REFERRALS_RAW, INQUIRIES_RAW, or APPLICATIONS_RAW) and answers right away, so families aren't kept waiting.
+   The rest happens in a background job (`processPending`) that runs every minute.
 2. It matches the student to an existing BRYC ID (same name plus the same student or guardian email or phone) or creates a new one in ID_REGISTRY. Same name and school without matching contact info is flagged as a possible duplicate instead.
 3. It creates or updates the student's MASTER row. Applications outrank inquiries, and inquiries outrank referrals, when answers differ. The first recruitment source is always kept.
 4. It sets Current RAM Status and Next Action. A Next Action typed by staff is never overwritten.
@@ -28,7 +29,11 @@ The web app can only add submissions. It has no way to read or return data from 
 
 If "Anyone" isn't offered in step 4, BRYC's Google Workspace admin has to allow web apps to accept outside users.
 
-**Updating later:** paste the new code, then go to **Deploy → Manage deployments → Edit → Version: New version → Deploy**. The URL stays the same.
+6. **Start the background job.** In the Apps Script editor, choose `setupTriggers` from the function menu next to **Run**, click **Run**, and approve the permissions. Do this once. Without it, submissions save but never get a BRYC ID or reach MASTER.
+
+**Updating later:** paste the new code, then go to **Deploy → Manage deployments → pencil icon → Version: New version → Deploy**. The URL stays the same.
+
+If a submission can't be processed, its BRYC ID cell says **NEEDS REVIEW**. Fix the row, clear that cell, and the job picks it up within a minute.
 
 The old `onFormSubmit` trigger can stay. It does nothing unless a Google Form is linked to one of the raw tabs.
 

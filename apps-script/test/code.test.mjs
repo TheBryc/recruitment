@@ -57,7 +57,7 @@ function load() {
   ctx = {
     console: {error() {}, warn() {}, log() {}},
     SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }) },
-    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
     ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'folder123' }) },
@@ -68,7 +68,9 @@ function load() {
   vm.runInContext(readFileSync(new URL('../Code.gs', import.meta.url), 'utf8'), ctx);
 }
 const isDate = v => Object.prototype.toString.call(v) === '[object Date]';
-const post = body => ctx.doPost({postData: {contents: JSON.stringify(body)}}).body;
+// Submit, then run the every-minute job the way the trigger would.
+const submit = body => ctx.doPost({postData: {contents: JSON.stringify(body)}}).body;
+const post = body => { const out = submit(body); ctx.processPending(); return out; };
 const master = (row, header) => sheets.MASTER.cell(row, HEADERS.MASTER.indexOf(header) + 1);
 const raw = (tab, row, header) => sheets[tab].cell(row, HEADERS[tab].indexOf(header) + 1);
 const edit = (row, header, value) => {
@@ -190,4 +192,24 @@ test('files are only accepted for upload questions and allowed types', () => {
   assert.equal(savedFiles.length, 0);
   const r = post({...application, files: [{column: 'ACT Report', name: 'x.exe', mimeType: 'application/x-msdownload', data: 'AA=='}]});
   assert.equal(r.ok, false);
+});
+
+test('submitting only saves the raw row; the background job does the rest', () => {
+  assert.deepEqual(submit(referral), {ok: true});
+  assert.equal(raw('REFERRALS_RAW', 2, 'Student First Name'), 'Jordan');
+  assert.equal(raw('REFERRALS_RAW', 2, 'BRYC ID'), '');
+  assert.equal(sheets.MASTER.getLastRow(), 1, 'MASTER untouched until the job runs');
+  ctx.processPending();
+  assert.equal(raw('REFERRALS_RAW', 2, 'BRYC ID'), 'PY28-0001');
+  assert.equal(master(2, 'Fellow First Name'), 'Jordan');
+  ctx.processPending();
+  assert.equal(sheets.MASTER.getLastRow(), 2, 'running again does not duplicate');
+});
+
+test('a row that cannot be processed is marked NEEDS REVIEW and skipped later', () => {
+  const s = sheets.INQUIRIES_RAW;
+  s.appendRow(HEADERS.INQUIRIES_RAW.map(h => h === 'Timestamp' ? new Date() : ''));
+  ctx.processPending();
+  assert.equal(raw('INQUIRIES_RAW', 2, 'BRYC ID'), 'NEEDS REVIEW');
+  assert.equal(sheets.MASTER.getLastRow(), 1);
 });
