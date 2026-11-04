@@ -108,7 +108,9 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .household.guardian-first #inquiry-guardian{order:-1}
 .refer-card{max-width:820px}
 .hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
-.form-done{padding:28px;border-radius:var(--radius);background:var(--surface);font-weight:600;font-size:1.05rem}
+.form-done{padding:28px;border-radius:var(--radius);background:var(--surface)}
+.form-done p{margin:0 0 6px;font-weight:600;font-size:1.05rem}
+.form-done .form-done-ask{margin:18px 0 14px;font-weight:400;color:var(--muted);font-size:1rem}
 .heard{margin-top:18px}
 .wide-text{width:100%;margin-bottom:4px}
 .household-part{margin:8px 0 6px;padding-top:18px;border-top:1px solid var(--line)}

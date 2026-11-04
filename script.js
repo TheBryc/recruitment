@@ -4,7 +4,8 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});history.replaceState(null,'',name==='home'?location.pathname:'#'+name);}
 $$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 // Open the page named in the link, so links like #refer or #apply can be shared.
-const startView=location.hash.slice(1);if(startView&&document.getElementById(startView)?.classList.contains('view'))view(startView);
+const openFromHash=()=>{const name=location.hash.slice(1);if(name&&document.getElementById(name)?.classList.contains('view'))view(name);};
+openFromHash();window.addEventListener('hashchange',openFromHash);
 // Interest form: one submission captures the student and a parent or guardian so staff can match them.
 const inquiry=$('#inquiry-form');
 function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
@@ -58,10 +59,23 @@ async function collectFiles(form){const files=[];
 // Interest and referral forms thank the family right away and finish sending in the
 // background; if sending fails, the form comes back with the error. Applications
 // carry files, so they wait for the save to finish before thanking.
-async function sendForm(type,form,msg,button,thanks,optimistic){
+// "Add another student": keep what the person told us about themselves and clear
+// only the sections marked data-repeat-clear.
+function startAnother(form,done,msg,button){
+ form.querySelectorAll('[data-repeat-clear]').forEach(section=>{
+  section.querySelectorAll('input,select,textarea').forEach(el=>{if(el.type==='checkbox'||el.type==='radio')el.checked=false;else if(el.tagName==='SELECT')el.selectedIndex=0;else el.value='';});
+  section.querySelectorAll('select[data-other]').forEach(el=>el.dispatchEvent(new Event('change')));
+  section.querySelectorAll('input[type="radio"][data-reveal]').forEach(r=>{$(r.dataset.reveal).hidden=true;});
+  section.querySelectorAll('[data-school-control]').forEach(w=>{const sel=w.querySelector('.school-select');sel.replaceChildren(new Option('Select school',''));sel.value='';syncSchoolControl(w);});});
+ form.querySelectorAll('.field-error').forEach(e=>e.remove());form.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
+ done.remove();msg.textContent='';button.disabled=false;form.hidden=false;
+ const first=form.querySelector('[data-repeat-clear] input:not([type="radio"])');first?.focus({preventScroll:true});form.querySelector('[data-repeat-clear]').scrollIntoView({behavior:'smooth',block:'start'});}
+async function sendForm(type,form,msg,button,thanks,optimistic,again){
  if(!SUBMIT_URL){msg.textContent='Preview only. Nothing was submitted or saved.';return false;}
  button.disabled=true;let done=null;
- const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');done.textContent=thanks;form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
+ const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');const p=document.createElement('p');p.textContent=thanks;done.append(p);
+  if(again){const ask=document.createElement('p');ask.className='form-done-ask';ask.textContent=again.prompt;const b=document.createElement('button');b.type='button';b.className='btn btn-secondary';b.textContent=again.label;b.addEventListener('click',()=>startAnother(form,done,msg,button));done.append(ask,b);}
+  form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
  try{// Collect answers before hiding the form: hidden questions are skipped on purpose.
   const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
   if(optimistic)showDone();else msg.textContent='Submitting your application. This can take a few seconds.';
@@ -69,11 +83,11 @@ async function sendForm(type,form,msg,button,thanks,optimistic){
   if(!out.ok)throw new Error(out.error||'Something went wrong.');
   if(!optimistic)showDone();return true;}
  catch(err){if(done){done.remove();form.hidden=false;}msg.textContent=(err&&err.message)||'Something went wrong. Please try again.';button.disabled=false;msg.scrollIntoView({behavior:'smooth',block:'center'});return false;}}
-[[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon.'],
- [$('#referral-form'),'referral','#referral-message','Thank you for the referral. We will reach out to the student and their family.']]
- .forEach(([form,type,msgSel,thanks])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
+[[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon.',{prompt:'Is there another student in your family who might be interested?',label:'Add another student'}],
+ [$('#referral-form'),'referral','#referral-message','Thank you for the referral. We will reach out to the student and their family.',{prompt:'Know another student who would be a good fit?',label:'Refer another student'}]]
+ .forEach(([form,type,msgSel,thanks,again])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
  if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
- sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks,true);}));
+ sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks,true,again);}));
 $$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
 // schools.json is the single school list for the public form and the staff workspace.
 let schoolList=[];try{const r=await fetch('schools.json');if(r.ok)schoolList=await r.json();}catch(e){}

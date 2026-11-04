@@ -22,7 +22,7 @@
 <div class="form-card"><form id="inquiry-form" novalidate=""><div class="hp" aria-hidden="true"><label>Website<input autocomplete="off" name="website" tabindex="-1" type="text"/></label></div>
 <fieldset class="role-choice"><legend>I'm a…</legend><label class="choice"><input checked="" name="submitterRole" data-col="Submitted By" type="radio" value="student" data-label="Student"/><span>Student</span></label><label class="choice"><input name="submitterRole" data-col="Submitted By" type="radio" value="guardian" data-label="Parent or guardian"/><span>Parent or guardian</span></label></fieldset>
 <div class="household">
-<fieldset class="household-part" id="inquiry-student"><legend class="part-title" data-student-title>Your information</legend><div class="form-grid">
+<fieldset class="household-part" id="inquiry-student" data-repeat-clear=""><legend class="part-title" data-student-title>Your information</legend><div class="form-grid">
 <label>First name<input autocomplete="off" maxlength="80" name="studentFirst" data-col="Student First Name" required=""/></label>
 <label>Last name<input autocomplete="off" maxlength="80" name="studentLast" data-col="Student Last Name" required=""/></label><label class="wide">Gender identity <span class="optional">(optional)</span><select name="studentGender" data-col="Student Gender Identity"><option value="">Select one</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select></label>
 <div class="school-control wide" data-school-control="inquiry"><label>Current school<input aria-label="Search for the student's school" autocomplete="off" class="school-search" placeholder="Start typing the school name" type="search"/></label><ul class="school-suggestions" hidden="" role="listbox"></ul><label><span class="sr-only">Select school</span><select class="school-select" name="studentSchool" data-col="School"><option value="">Select school</option></select></label><label class="other-school" hidden="">School name<input maxlength="150" name="studentSchoolOther" placeholder="Enter the school name" type="text"/></label></div>
@@ -74,7 +74,7 @@
 <label class="wide">Which best describes you?<select name="referrerRole" data-col="Which best describes you?" required="" data-other="#referrer-role-other"><option value="">Select one</option><option>School counselor</option><option>Teacher</option><option>School administrator</option><option>Community partner</option><option>Current BRYC Fellow</option><option>BRYC alum</option><option>Parent or family member</option><option>Other</option></select></label>
 <label class="wide" hidden="" id="referrer-role-other">Please describe<input maxlength="80" name="referrerRoleOther" type="text"/></label>
 </div></fieldset>
-<fieldset class="household-part"><legend class="part-title">About the student</legend><div class="form-grid">
+<fieldset class="household-part" data-repeat-clear=""><legend class="part-title">About the student</legend><div class="form-grid">
 <label>First name<input autocomplete="off" maxlength="80" name="studentFirst" data-col="Student First Name" required=""/></label>
 <label>Last name<input autocomplete="off" maxlength="80" name="studentLast" data-col="Student Last Name" required=""/></label>
 <label class="wide">Gender identity <span class="optional">(optional)</span><select name="referralStudentGender" data-col="Student Gender Identity"><option value="">Select one</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select></label>
@@ -84,7 +84,7 @@
 <label class="wide">Student email <span class="optional">(optional)</span><input autocomplete="off" maxlength="254" name="studentEmail" data-col="Student Email" type="email"/><small>A personal email works best. School email addresses often block outside messages.</small></label>
 <label class="wide">Anything else we should know about this student? <span class="optional">(optional)</span><textarea maxlength="1500" name="referralNotes" data-col="Anything Else We Should Know" rows="4"></textarea></label>
 </div></fieldset>
-<fieldset class="household-part" data-required-radio="hasGuardianContact"><legend class="part-title">The student's parent or guardian</legend>
+<fieldset class="household-part" data-required-radio="hasGuardianContact" data-repeat-clear=""><legend class="part-title">The student's parent or guardian</legend>
 <div class="role-choice"><span class="question-title wide-text">Do you have contact information for the student's parent or guardian?</span><label class="choice"><input name="hasGuardianContact" data-col="Has Guardian Contact" type="radio" value="yes" data-label="Yes" data-reveal="#referral-guardian"/><span>Yes</span></label><label class="choice"><input name="hasGuardianContact" data-col="Has Guardian Contact" type="radio" value="no" data-label="No" data-reveal="#referral-guardian"/><span>No</span></label></div>
 <div class="form-grid" hidden="" id="referral-guardian">
 <label>First name<input autocomplete="off" maxlength="80" name="guardianFirst" data-col="Guardian First Name" required=""/></label>
