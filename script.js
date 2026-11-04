@@ -1,11 +1,75 @@
 
 (async()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});}
+function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});history.replaceState(null,'',name==='home'?location.pathname:'#'+name);}
 $$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
-if(location.hash==='#staff')view('staff');
-const inquiry=$('#inquiry-form');function changeRole(){let student=$('input[name="role"]:checked')?.value==='student';let field=$('#student-fields');field.hidden=!student;field.querySelectorAll('input,select').forEach(x=>{x.disabled=!student;if(x.classList.contains('school-search'))return; if(x.name==='school')x.required=student;else if(x.name==='inquiryOtherSchool')x.required=student&&x.closest('.other-school')?.hidden===false;else x.required=student});$('#email-label').textContent=student?'Personal email address':'Email address';$('#email-hint').hidden=!student}$$('input[name="role"]').forEach(n=>n.addEventListener('change',changeRole));
-inquiry?.addEventListener('submit',e=>{e.preventDefault();$('#inquiry-message').textContent='Preview only. Nothing was submitted or saved.'});
+// Open the page named in the link, so links like #refer or #apply can be shared.
+const startView=location.hash.slice(1);if(startView&&document.getElementById(startView)?.classList.contains('view'))view(startView);
+// Interest form: one submission captures the student and a parent or guardian so staff can match them.
+const inquiry=$('#inquiry-form');
+function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
+ inquiry.querySelector('.household').classList.toggle('guardian-first',guardian);
+ inquiry.querySelector('[data-student-title]').textContent=guardian?'Your student':'Your information';
+ inquiry.querySelector('[data-guardian-title]').textContent=guardian?'Your information':'Your parent or guardian';
+ inquiry.querySelector('[data-relationship-label]').textContent=guardian?'Your relationship to the student':'Relationship to you';}
+$$('input[name="submitterRole"]').forEach(n=>n.addEventListener('change',changeRole));
+// A select with data-other shows a describe box when its "other" option is picked.
+$$('select[data-other]').forEach(sel=>{const box=$(sel.dataset.other),input=box.querySelector('input'),trigger=sel.dataset.otherValue||'Other';
+ const sync=()=>{const on=sel.value===trigger;box.hidden=!on;input.required=on;if(!on)input.value='';};sel.addEventListener('change',sync);sync();});
+// A radio with data-reveal shows its target only when "yes" is chosen.
+$$('input[type="radio"][data-reveal]').forEach(r=>r.addEventListener('change',()=>{$(r.dataset.reveal).hidden=r.form.elements.namedItem(r.name).value!=='yes';}));
+// Shared checks for the interest and referral forms. Hidden questions are skipped.
+function formErrors(form){
+ form.querySelectorAll('.field-error').forEach(e=>e.remove());form.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
+ let first=null;const fail=(el,msg)=>{el.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent=msg;el.insertAdjacentElement('afterend',n);first??=el;};
+ form.querySelectorAll('input,select,textarea').forEach(el=>{if(el.closest('[hidden]')||el.type==='radio'||el.classList.contains('school-search')||el.classList.contains('school-select'))return;
+  const v=el.value.trim();
+  if(el.required&&!v)fail(el,'This question is required.');
+  else if(v&&el.type==='email'&&el.validity.typeMismatch)fail(el,'Please enter a valid email address.');
+  else if(v&&el.type==='tel'&&v.replace(/\D/g,'').length<10)fail(el,'Please enter a 10-digit phone number.');});
+ form.querySelectorAll('[data-required-radio]').forEach(group=>{if(!form.elements.namedItem(group.dataset.requiredRadio).value)fail(group.querySelector('.role-choice'),'Please choose one.');});
+ form.querySelectorAll('[data-school-control]').forEach(school=>{if(school.closest('[hidden]'))return;const sel=school.querySelector('.school-select');
+  if(!sel.value)fail(school.querySelector('.school-search'),'Choose a school from the list, or select “My school isn’t listed.”');
+  else if(sel.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');});
+ return first;}
+// Submissions go to the RAM HQ web app named in portal-config.js. Without it, forms stay in preview mode.
+const SUBMIT_URL=(window.BRYC_PORTAL||{}).submitUrl||'';
+if(SUBMIT_URL){$$('[data-preview]').forEach(n=>n.hidden=true);$$('[data-live]').forEach(n=>n.hidden=false);}
+const MAX_FILE_BYTES=10*1024*1024;
+// Answers keyed by RAM HQ column. Hidden or disabled questions are left out.
+function collectAnswers(form){const out={};
+ form.querySelectorAll('[data-col]').forEach(el=>{if(el.disabled||el.closest('[hidden]')||el.type==='file')return;const col=el.dataset.col;let v='';
+  if(el.type==='checkbox'){if(!el.checked)return;out[col]=out[col]?out[col]+'; '+el.value:el.value;return;}
+  if(el.type==='radio'){if(!el.checked)return;v=el.dataset.label||el.value;}
+  else if(el.tagName==='SELECT'){
+   if(el.classList.contains('school-select')){const other=el.closest('[data-school-control]').querySelector('.other-school input');
+    if(el.value===OTHER){v=other.value.trim();out['School Not Listed']='Yes';}else if(el.value){v=el.value;out['School Not Listed']='No';}}
+   else if(el.value){v='useValue' in el.dataset?el.value:el.selectedOptions[0].text;
+    if(el.dataset.other&&el.value===(el.dataset.otherValue||'Other')){const t=$(el.dataset.other).querySelector('input').value.trim();if(t)v=el.value==='Other'?'Other: '+t:t;}}}
+  else v=el.value.trim();
+  if(v)out[col]=v;});
+ return out;}
+function readFile(file){return new Promise((ok,fail)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=()=>fail(r.error);r.readAsDataURL(file);});}
+async function collectFiles(form){const files=[];
+ for(const el of form.querySelectorAll('input[type="file"][data-col]')){if(el.closest('[hidden]')||!el.files.length)continue;const f=el.files[0];
+  if(f.size>MAX_FILE_BYTES)throw new Error(`${f.name} is larger than 10 MB. Please upload a smaller file or a screenshot.`);
+  files.push({column:el.dataset.col,name:f.name,mimeType:f.type||'application/octet-stream',data:await readFile(f)});}
+ return files;}
+async function sendForm(type,form,msg,button,thanks){
+ if(!SUBMIT_URL){msg.textContent='Preview only. Nothing was submitted or saved.';return false;}
+ button.disabled=true;msg.textContent='Sending…';
+ try{const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
+  const res=await fetch(SUBMIT_URL,{method:'POST',body:JSON.stringify(body)});const out=await res.json();
+  if(!out.ok)throw new Error(out.error||'Something went wrong.');
+  const done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');done.textContent=thanks;
+  form.replaceWith(done);done.scrollIntoView({behavior:'smooth',block:'center'});return true;}
+ catch(err){msg.textContent=(err&&err.message)||'Something went wrong. Please try again.';button.disabled=false;return false;}}
+[[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon.'],
+ [$('#referral-form'),'referral','#referral-message','Thank you for the referral. We will reach out to the student and their family.']]
+ .forEach(([form,type,msgSel,thanks])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
+ if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
+ sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks);}));
+$$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
 // schools.json is the single school list for the public form and the staff workspace.
 let schoolList=[];try{const r=await fetch('schools.json');if(r.ok)schoolList=await r.json();}catch(e){}
 
@@ -41,7 +105,7 @@ function initSchoolCombobox(wrapper){
  syncSchoolControl(wrapper);
 }
 $$('[data-school-control]').forEach(initSchoolCombobox);
-changeRole();
+if(inquiry)changeRole();
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');
 function updateYear(){
@@ -65,11 +129,11 @@ function updateAcademic(){
  const branch=$('#academic-branch');branch.replaceChildren();
  const title=document.createElement('h3');title.textContent=g===12?'Rising Senior Academic Records':g===11?'Rising Junior Academic Records':'Grade Report';branch.append(title);
  const desc=document.createElement('p');desc.textContent=g===12?'Please provide your high school transcript through fall of junior year and your highest official ACT score report, if available.':g===11?'Please upload a transcript or report card showing coursework from ninth grade through fall of sophomore year.':'Grade Report: Please upload your most recent report card. A screenshot is acceptable.';branch.append(desc);
- function file(name,label){const lab=document.createElement('label');lab.className='academic-file';const span=document.createElement('span');span.className='question-title';span.textContent=label;const field=document.createElement('input');field.type='file';field.name=name;field.accept='.pdf,.png,.jpg,.jpeg';field.setAttribute('aria-label',label);lab.append(span,field);branch.append(lab);return field;}
- if(g===12){file('transcript','High School Transcript');const lab=document.createElement('label');const span=document.createElement('span');span.className='question-title';span.textContent='Have You Taken an Official ACT?';const select=document.createElement('select');select.name='actTaken';select.required=true;[['','Choose one'],['Yes','Yes'],['Yes, but I do not know my scores yet','Yes, but I do not know my scores yet'],['No','No']].forEach(([v,l])=>select.add(new Option(l,v)));lab.append(span,select);branch.append(lab);
+ function file(name,label){const lab=document.createElement('label');lab.className='academic-file';const span=document.createElement('span');span.className='question-title';span.textContent=label;const field=document.createElement('input');field.type='file';field.name=name;field.dataset.col=name==='actReport'?'ACT Report':'Academic Record';field.accept='.pdf,.png,.jpg,.jpeg';field.setAttribute('aria-label',label);lab.append(span,field);branch.append(lab);return field;}
+ if(g===12){file('transcript','High School Transcript');const lab=document.createElement('label');const span=document.createElement('span');span.className='question-title';span.textContent='Have You Taken an Official ACT?';const select=document.createElement('select');select.name='actTaken';select.dataset.col='ACT Taken';select.required=true;[['','Choose one'],['Yes','Yes'],['Yes, but I do not know my scores yet','Yes, but I do not know my scores yet'],['No','No']].forEach(([v,l])=>select.add(new Option(l,v)));lab.append(span,select);branch.append(lab);
  const act=file('actReport','Highest ACT Score Report (if available)');act.closest('label').hidden=true;select.addEventListener('change',()=>{act.closest('label').hidden=select.value!=='Yes';clearErrors()});}
  else if(g===11){file('juniorRecord','Transcript or Report Card')}
- else{const f=file('gradeReport','Most Recent Report Card');const lab=document.createElement('label');const span=document.createElement('span');span.className='question-title';span.textContent='If You Cannot Access Your Report Card, Self-Report Your Grades Here';const area=document.createElement('textarea');area.name='selfReportedGrades';area.rows=3;area.placeholder='Class name and grade';lab.append(span,area);branch.append(lab);}
+ else{const f=file('gradeReport','Most Recent Report Card');const lab=document.createElement('label');const span=document.createElement('span');span.className='question-title';span.textContent='If You Cannot Access Your Report Card, Self-Report Your Grades Here';const area=document.createElement('textarea');area.name='selfReportedGrades';area.dataset.col='Self-Reported Grades';area.rows=3;area.placeholder='Class name and grade';lab.append(span,area);branch.append(lab);}
 }
 year.addEventListener('change',updateYear);currentGrade.addEventListener('change',updateAcademic);futureGrade.addEventListener('change',updateAcademic);updateYear();
 const relative=app.elements.namedItem('brycRelative');const relativeNames=app.elements.namedItem('relativeNames');
@@ -113,6 +177,6 @@ function review(){const target=$('#application-review');target.replaceChildren()
  let row=target.querySelector('[data-review-key="'+CSS.escape(k)+'"]');if(!row){row=document.createElement('div');row.className='review-row';row.dataset.reviewKey=k;const title=document.createElement('strong');title.textContent=label;const data=document.createElement('span');row.append(title,data);target.append(row)}
  const node=row.querySelector('span');node.textContent+=(node.textContent?', ':'')+value;
  }}
-function showStep(){steps.forEach((s,i)=>s.classList.toggle('active',i===step));$('#wizard-count').textContent=`Step ${step+1} of ${steps.length} · ${names[step]}`;const prev=$('#wizard-back'),next=$('#wizard-next');prev.disabled=step===0;next.textContent=step===steps.length-1?'Preview Complete (No Submission)':'Continue →';const milestones=$$('.wizard-milestones li');milestones.forEach((x,i)=>{x.classList.toggle('active',i===step);x.classList.toggle('done',i<step);if(i===step)x.setAttribute('aria-current','step');else x.removeAttribute('aria-current')});$('#wizard-fill').style.width=((step+1)/steps.length*100)+'%';if(step===steps.length-1)review();clearErrors();const y=$('#apply').getBoundingClientRect().top+window.scrollY-80;window.scrollTo({top:Math.max(0,y),behavior:'instant'});}
-$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(step===steps.length-1){$('#wizard-notice').textContent='Preview complete. No information has been submitted or saved.';return;}if(!validateStep(step))return;step++;showStep()});showStep();
+function showStep(){steps.forEach((s,i)=>s.classList.toggle('active',i===step));$('#wizard-count').textContent=`Step ${step+1} of ${steps.length} · ${names[step]}`;const prev=$('#wizard-back'),next=$('#wizard-next');prev.disabled=step===0;next.textContent=step===steps.length-1?(SUBMIT_URL?'Submit application':'Preview complete (no submission)'):'Continue →';const milestones=$$('.wizard-milestones li');milestones.forEach((x,i)=>{x.classList.toggle('active',i===step);x.classList.toggle('done',i<step);if(i===step)x.setAttribute('aria-current','step');else x.removeAttribute('aria-current')});$('#wizard-fill').style.width=((step+1)/steps.length*100)+'%';if(step===steps.length-1)review();clearErrors();const y=$('#apply').getBoundingClientRect().top+window.scrollY-80;window.scrollTo({top:Math.max(0,y),behavior:'instant'});}
+$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(step===steps.length-1){sendForm('application',app,$('#wizard-notice'),$('#wizard-next'),'Your application was submitted. We will be in touch with next steps.');return;}if(!validateStep(step))return;step++;showStep()});showStep();
 })();
