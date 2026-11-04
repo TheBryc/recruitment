@@ -1,9 +1,10 @@
 
 (async()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});}
+function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});history.replaceState(null,'',name==='home'?location.pathname:'#'+name);}
 $$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
-if(location.hash==='#staff')view('staff');
+// Open the page named in the link, so links like #refer or #apply can be shared.
+const startView=location.hash.slice(1);if(startView&&document.getElementById(startView)?.classList.contains('view'))view(startView);
 // Interest form: one submission captures the student and a parent or guardian so staff can match them.
 const inquiry=$('#inquiry-form');
 function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
@@ -12,24 +13,28 @@ function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.v
  inquiry.querySelector('[data-guardian-title]').textContent=guardian?'Your information':'Your parent or guardian';
  inquiry.querySelector('[data-relationship-label]').textContent=guardian?'Your relationship to the student':'Relationship to you';}
 $$('input[name="submitterRole"]').forEach(n=>n.addEventListener('change',changeRole));
-const relationship=inquiry?.elements.namedItem('guardianRelationship');
-function syncRelationship(){const other=relationship.value==='Other',box=$('#relationship-other');box.hidden=!other;box.querySelector('input').required=other;if(!other)box.querySelector('input').value='';}
-relationship?.addEventListener('change',syncRelationship);
-function inquiryErrors(){
- inquiry.querySelectorAll('.field-error').forEach(e=>e.remove());inquiry.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
+// A select with data-other shows a describe box when its "other" option is picked.
+$$('select[data-other]').forEach(sel=>{const box=$(sel.dataset.other),input=box.querySelector('input'),trigger=sel.dataset.otherValue||'Other';
+ const sync=()=>{const on=sel.value===trigger;box.hidden=!on;input.required=on;if(!on)input.value='';};sel.addEventListener('change',sync);sync();});
+// A radio with data-reveal shows its target only when "yes" is chosen.
+$$('input[type="radio"][data-reveal]').forEach(r=>r.addEventListener('change',()=>{$(r.dataset.reveal).hidden=r.form.elements.namedItem(r.name).value!=='yes';}));
+// Shared checks for the interest and referral forms. Hidden questions are skipped.
+function formErrors(form){
+ form.querySelectorAll('.field-error').forEach(e=>e.remove());form.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
  let first=null;const fail=(el,msg)=>{el.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent=msg;el.insertAdjacentElement('afterend',n);first??=el;};
- inquiry.querySelectorAll('input,select').forEach(el=>{if(el.closest('[hidden]')||el.type==='radio'||el.classList.contains('school-search')||el.classList.contains('school-select'))return;
+ form.querySelectorAll('input,select,textarea').forEach(el=>{if(el.closest('[hidden]')||el.type==='radio'||el.classList.contains('school-search')||el.classList.contains('school-select'))return;
   const v=el.value.trim();
   if(el.required&&!v)fail(el,'This question is required.');
   else if(v&&el.type==='email'&&el.validity.typeMismatch)fail(el,'Please enter a valid email address.');
   else if(v&&el.type==='tel'&&v.replace(/\D/g,'').length<10)fail(el,'Please enter a 10-digit phone number.');});
- const school=inquiry.querySelector('[data-school-control="inquiry"]'),sel=school.querySelector('.school-select');
- if(!sel.value)fail(school.querySelector('.school-search'),'Choose a school from the list, or select “My school isn’t listed.”');
- else if(sel.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');
+ form.querySelectorAll('[data-required-radio]').forEach(group=>{if(!form.elements.namedItem(group.dataset.requiredRadio).value)fail(group.querySelector('.role-choice'),'Please choose one.');});
+ form.querySelectorAll('[data-school-control]').forEach(school=>{if(school.closest('[hidden]'))return;const sel=school.querySelector('.school-select');
+  if(!sel.value)fail(school.querySelector('.school-search'),'Choose a school from the list, or select “My school isn’t listed.”');
+  else if(sel.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');});
  return first;}
-inquiry?.addEventListener('submit',e=>{e.preventDefault();const first=inquiryErrors();const msg=$('#inquiry-message');
+[[inquiry,'#inquiry-message'],[$('#referral-form'),'#referral-message']].forEach(([form,msgSel])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
  if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
- msg.textContent='Preview only. Nothing was submitted or saved.';});
+ msg.textContent='Preview only. Nothing was submitted or saved.';}));
 $$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
 // schools.json is the single school list for the public form and the staff workspace.
 let schoolList=[];try{const r=await fetch('schools.json');if(r.ok)schoolList=await r.json();}catch(e){}
@@ -66,7 +71,7 @@ function initSchoolCombobox(wrapper){
  syncSchoolControl(wrapper);
 }
 $$('[data-school-control]').forEach(initSchoolCombobox);
-if(inquiry){changeRole();syncRelationship();}
+if(inquiry)changeRole();
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');
 function updateYear(){
@@ -100,9 +105,6 @@ year.addEventListener('change',updateYear);currentGrade.addEventListener('change
 const relative=app.elements.namedItem('brycRelative');const relativeNames=app.elements.namedItem('relativeNames');
 function syncRelative(){relativeNames.required=relative.checked;relativeNames.closest('label').hidden=!relative.checked;if(!relative.checked)relativeNames.value=''}
 relative.addEventListener('change',syncRelative);syncRelative();
-const appRelationship=app.elements.namedItem('guardianRelationship');
-function syncAppRelationship(){const other=appRelationship.value==='Other',box=$('#app-relationship-other'),input=box.querySelector('input');box.hidden=!other;input.required=other;if(!other)input.value='';}
-appRelationship.addEventListener('change',syncAppRelationship);syncAppRelationship();
 let step=0,steps=$$('.wizard-step');const names=['Student Information','Academic Records','About You','Guardian & Address','Review'];
 function labelFor(el){let label=el.closest('label');let text=label?.querySelector('.question-title')?.textContent||label?.textContent||el.getAttribute('aria-label')||el.name||'This field';return text.trim().replace(/\s+/g,' ').slice(0,90)}
 function clearErrors(){app.querySelectorAll('.field-error').forEach(e=>e.remove());app.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));const n=$('#wizard-notice');if(n)n.textContent=''}

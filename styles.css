@@ -106,6 +106,9 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .student-fields{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
 .household{display:flex;flex-direction:column;gap:8px}
 .household.guardian-first #inquiry-guardian{order:-1}
+.refer-card{max-width:820px}
+.heard{margin-top:18px}
+.wide-text{width:100%;margin-bottom:4px}
 .household-part{margin:8px 0 6px;padding-top:18px;border-top:1px solid var(--line)}
 .part-title{font-size:1.05rem;font-weight:700;margin-bottom:2px}
 .optional{font-weight:400;color:var(--muted);font-size:.88rem}
