@@ -154,16 +154,26 @@ function saveUpload(file, fields) {
     throw new Error('File type not allowed: ' + file.mimeType);
   }
 
-  const bytes = Utilities.base64Decode(file.data);
+  const bytes = Utilities.base64Decode(String(file.data || ''));
   if (bytes.length > CONFIG.maxFileBytes) throw new Error('File too large.');
 
   const name = [
     fields['Student Last Name'], fields['Student First Name'], file.column, file.name
   ].filter(Boolean).join(' - ');
 
-  const saved = DriveApp
-    .getFolderById(folderId)
-    .createFile(Utilities.newBlob(bytes, file.mimeType, name));
+  const blob = Utilities.newBlob(bytes, file.mimeType, name);
+  const saved = DriveApp.getFolderById(folderId).createFile(blob);
+  const savedSize = saved.getSize();
+
+  // Shows in Apps Script > Executions, to trace any upload problem.
+  console.log(`Upload ${file.column}: ${String(file.data || '').length} base64 chars, ${bytes.length} bytes decoded, ${savedSize} bytes saved`);
+
+  // Never let an empty file pass as a real document: keep the application
+  // and flag the upload so staff can ask the family to resend it.
+  if (!bytes.length || !savedSize) {
+    console.error(`Upload ${file.column} saved empty for ${name}`);
+    return 'UPLOAD FAILED: ask family to resend. ' + saved.getUrl();
+  }
 
   return saved.getUrl();
 }
