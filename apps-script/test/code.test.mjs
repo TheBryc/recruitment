@@ -62,7 +62,7 @@ function load() {
     ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'folder123' }) },
     Utilities: { base64Decode: d => Buffer.from(d, 'base64'), newBlob: (bytes, type, name) => ({bytes, type, name}) },
-    DriveApp: { getFolderById: () => ({ createFile: blob => { savedFiles.push(blob); return { getUrl: () => 'https://drive/' + blob.name }; } }) }
+    DriveApp: { getFolderById: () => ({ createFile: blob => { savedFiles.push(blob); return { getUrl: () => 'https://drive/' + blob.name, getSize: () => blob.bytes.length }; } }) }
   };
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../Code.gs', import.meta.url), 'utf8'), ctx);
@@ -212,4 +212,10 @@ test('a row that cannot be processed is marked NEEDS REVIEW and skipped later', 
   ctx.processPending();
   assert.equal(raw('INQUIRIES_RAW', 2, 'BRYC ID'), 'NEEDS REVIEW');
   assert.equal(sheets.MASTER.getLastRow(), 1);
+});
+
+test('an upload that saves empty is flagged and the application still saves', () => {
+  post({...application, files: [{column: 'Academic Record', name: 'blank.png', mimeType: 'image/png', data: ''}]});
+  assert.match(raw('APPLICATIONS_RAW', 2, 'Academic Record'), /^UPLOAD FAILED: ask family to resend/);
+  assert.equal(master(2, 'Application Status'), 'Submitted');
 });
