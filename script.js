@@ -55,20 +55,25 @@ async function collectFiles(form){const files=[];
   if(f.size>MAX_FILE_BYTES)throw new Error(`${f.name} is larger than 10 MB. Please upload a smaller file or a screenshot.`);
   files.push({column:el.dataset.col,name:f.name,mimeType:f.type||'application/octet-stream',data:await readFile(f)});}
  return files;}
-async function sendForm(type,form,msg,button,thanks){
+// Interest and referral forms thank the family right away and finish sending in the
+// background; if sending fails, the form comes back with the error. Applications
+// carry files, so they wait for the save to finish before thanking.
+async function sendForm(type,form,msg,button,thanks,optimistic){
  if(!SUBMIT_URL){msg.textContent='Preview only. Nothing was submitted or saved.';return false;}
- button.disabled=true;msg.textContent='Sending…';
- try{const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
-  const res=await fetch(SUBMIT_URL,{method:'POST',body:JSON.stringify(body)});const out=await res.json();
+ button.disabled=true;let done=null;
+ const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');done.textContent=thanks;form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
+ try{// Collect answers before hiding the form: hidden questions are skipped on purpose.
+  const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
+  if(optimistic)showDone();else msg.textContent='Submitting your application. This can take a few seconds.';
+  const res=await fetch(SUBMIT_URL,{method:'POST',body:JSON.stringify(body),keepalive:optimistic});const out=await res.json();
   if(!out.ok)throw new Error(out.error||'Something went wrong.');
-  const done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');done.textContent=thanks;
-  form.replaceWith(done);done.scrollIntoView({behavior:'smooth',block:'center'});return true;}
- catch(err){msg.textContent=(err&&err.message)||'Something went wrong. Please try again.';button.disabled=false;return false;}}
+  if(!optimistic)showDone();return true;}
+ catch(err){if(done){done.remove();form.hidden=false;}msg.textContent=(err&&err.message)||'Something went wrong. Please try again.';button.disabled=false;msg.scrollIntoView({behavior:'smooth',block:'center'});return false;}}
 [[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon.'],
  [$('#referral-form'),'referral','#referral-message','Thank you for the referral. We will reach out to the student and their family.']]
  .forEach(([form,type,msgSel,thanks])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
  if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
- sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks);}));
+ sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks,true);}));
 $$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
 // schools.json is the single school list for the public form and the staff workspace.
 let schoolList=[];try{const r=await fetch('schools.json');if(r.ok)schoolList=await r.json();}catch(e){}

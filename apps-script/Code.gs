@@ -103,28 +103,17 @@ function doPost(e) {
       return jsonResponse({ ok: false, error: 'Missing required answers: ' + missing.join(', ') });
     }
 
-    const lock = LockService.getScriptLock();
-    lock.waitLock(30000);
+    // Save the raw answers and return right away so families aren't kept
+    // waiting. processPending assigns the BRYC ID and updates MASTER.
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(formConfig.sheet);
 
-    try {
+    fields['Timestamp'] = new Date();
 
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName(formConfig.sheet);
+    (payload.files || [])
+      .filter(file => CONFIG.uploadColumns.includes(file.column))
+      .forEach(file => { fields[file.column] = saveUpload(file, fields); });
 
-      fields['Timestamp'] = new Date();
-
-      (payload.files || [])
-        .filter(file => CONFIG.uploadColumns.includes(file.column))
-        .forEach(file => { fields[file.column] = saveUpload(file, fields); });
-
-      const row = appendByHeader(sheet, fields);
-      processResponseRow(ss, sheet, row);
-
-    } finally {
-
-      lock.releaseLock();
-
-    }
+    appendByHeader(sheet, fields);
 
     return jsonResponse({ ok: true });
 
@@ -193,10 +182,8 @@ function appendByHeader(sheet, fields) {
     if (column) rowValues[column - 1] = value;
   });
 
-  const row = Math.max(sheet.getLastRow() + 1, 2);
-  sheet.getRange(row, 1, 1, width).setValues([rowValues]);
-
-  return row;
+  // appendRow is atomic, so simultaneous submissions never share a row.
+  sheet.appendRow(rowValues);
 }
 
 
@@ -217,6 +204,69 @@ function jsonResponse(body) {
   return ContentService
     .createTextOutput(JSON.stringify(body))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+/* =========================================================
+   BACKGROUND PROCESSING (runs every minute)
+   ========================================================= */
+
+// Run once from the Apps Script editor to start the every-minute job.
+function setupTriggers() {
+
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'processPending')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
+  ScriptApp.newTrigger('processPending').timeBased().everyMinutes(1).create();
+}
+
+
+// Gives a BRYC ID and MASTER update to every saved submission that doesn't
+// have one yet. A row that can't be processed is marked NEEDS REVIEW so it
+// isn't retried every minute.
+function processPending() {
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+
+  try {
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const started = Date.now();
+
+    Object.values(CONFIG.forms).forEach(formConfig => {
+
+      const sheet = ss.getSheetByName(formConfig.sheet);
+      if (!sheet || sheet.getLastRow() < 2) return;
+
+      const headers = getHeaderMap(sheet);
+      const timeColumn = headers[normalizeHeader('Timestamp')];
+      const idColumn = ensureHeader(sheet, 'BRYC ID');
+
+      const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+
+      rows.forEach((values, i) => {
+
+        if (Date.now() - started > 4 * 60 * 1000) return;
+        if (isBlank(values[timeColumn - 1]) || !isBlank(values[idColumn - 1])) return;
+
+        const row = i + 2;
+
+        try {
+          processResponseRow(ss, sheet, row);
+        } catch (err) {
+          console.error(formConfig.sheet + ' row ' + row + ': ' + err.message);
+          sheet.getRange(row, idColumn).setValue('NEEDS REVIEW');
+        }
+      });
+    });
+
+  } finally {
+
+    lock.releaseLock();
+
+  }
 }
 
 
