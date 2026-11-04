@@ -72,7 +72,11 @@ const CONFIG = {
   maxValueLength: 5000,
   maxFileBytes: 10 * 1024 * 1024,
   allowedFileTypes: ['application/pdf', 'image/png', 'image/jpeg', 'image/heic', 'image/heif'],
-  maxSubmissionsPerMinute: 30
+  maxSubmissionsPerMinute: 30,
+
+  // How often new submissions get a BRYC ID and reach MASTER.
+  // Google allows 1, 5, 10, 15, or 30. Rerun setupTriggers after changing it.
+  processEveryMinutes: 15
 };
 
 
@@ -218,17 +222,36 @@ function jsonResponse(body) {
 
 
 /* =========================================================
-   BACKGROUND PROCESSING (runs every minute)
+   BACKGROUND PROCESSING (runs every processEveryMinutes)
    ========================================================= */
 
-// Run once from the Apps Script editor to start the every-minute job.
+// Run from the Apps Script editor to start the job, and again whenever
+// processEveryMinutes changes. It replaces any earlier schedule.
 function setupTriggers() {
 
   ScriptApp.getProjectTriggers()
     .filter(t => t.getHandlerFunction() === 'processPending')
     .forEach(t => ScriptApp.deleteTrigger(t));
 
-  ScriptApp.newTrigger('processPending').timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger('processPending').timeBased().everyMinutes(CONFIG.processEveryMinutes).create();
+}
+
+
+// Adds a RAM HQ menu so staff can process new submissions without waiting
+// for the next scheduled run.
+function onOpen() {
+
+  SpreadsheetApp.getUi()
+    .createMenu('RAM HQ')
+    .addItem('Process new submissions now', 'processPendingNow')
+    .addToUi();
+}
+
+
+function processPendingNow() {
+
+  processPending();
+  SpreadsheetApp.getActiveSpreadsheet().toast('New submissions are processed.', 'RAM HQ', 5);
 }
 
 

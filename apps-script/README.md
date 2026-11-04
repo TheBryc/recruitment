@@ -5,7 +5,7 @@
 ## What it does
 
 1. The site sends a submission. The script saves it to the matching raw tab (REFERRALS_RAW, INQUIRIES_RAW, or APPLICATIONS_RAW) and answers right away, so families aren't kept waiting.
-   The rest happens in a background job (`processPending`) that runs every minute.
+   The rest happens in a background job (`processPending`) that runs every 15 minutes. To run it right away, use **RAM HQ → Process new submissions now** in the sheet's menu bar.
 2. It matches the student to an existing BRYC ID (same name plus the same student or guardian email or phone) or creates a new one in ID_REGISTRY. Same name and school without matching contact info is flagged as a possible duplicate instead.
 3. It creates or updates the student's MASTER row. Applications outrank inquiries, and inquiries outrank referrals, when answers differ. The first recruitment source is always kept.
 4. It sets Current RAM Status and Next Action. A Next Action typed by staff is never overwritten.
@@ -29,11 +29,13 @@ The web app can only add submissions. It has no way to read or return data from 
 
 If "Anyone" isn't offered in step 4, BRYC's Google Workspace admin has to allow web apps to accept outside users.
 
-6. **Start the background job.** In the Apps Script editor, choose `setupTriggers` from the function menu next to **Run**, click **Run**, and approve the permissions. Do this once. Without it, submissions save but never get a BRYC ID or reach MASTER.
+6. **Start the background job.** In the Apps Script editor, choose `setupTriggers` from the function menu next to **Run**, click **Run**, and approve the permissions. Without it, submissions save but never get a BRYC ID or reach MASTER.
+
+**Changing how often it runs:** near a deadline you may want faster updates. In `Code.gs`, change `processEveryMinutes` (Google allows 1, 5, 10, 15, or 30), save, and run `setupTriggers` again.
 
 **Updating later:** paste the new code, then go to **Deploy → Manage deployments → pencil icon → Version: New version → Deploy**. The URL stays the same.
 
-If a submission can't be processed, its BRYC ID cell says **NEEDS REVIEW**. Fix the row, clear that cell, and the job picks it up within a minute.
+If a submission can't be processed, its BRYC ID cell says **NEEDS REVIEW**. Fix the row, clear that cell, and the next run picks it up (or use **RAM HQ → Process new submissions now**).
 
 The old `onFormSubmit` trigger can stay. It does nothing unless a Google Form is linked to one of the raw tabs.
 
