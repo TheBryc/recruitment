@@ -81,7 +81,6 @@ a{color:inherit}
 .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding-top:72px;padding-bottom:96px}
 .hero .lead{margin-bottom:32px}
 .hero-art{position:relative;aspect-ratio:1/1;max-height:520px;width:100%;border-radius:50%;overflow:hidden;background:var(--pink-deep);box-shadow:0 30px 80px rgba(80,0,20,.25)}
-.hero-art svg{position:absolute;inset:0;width:100%;height:100%}
 .hero-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hero-note{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);width:min(78%,330px);background:#fff;color:#161616;box-shadow:0 10px 30px rgba(22,22,22,.18);border:1px solid var(--line-dark);border-radius:14px;padding:14px 18px;text-align:center}
 .hero-note strong{display:block;font-size:.98rem;line-height:1.35}
@@ -93,7 +92,7 @@ a{color:inherit}
 .ticker{background:#161616;color:#fff;overflow:hidden;white-space:nowrap}
 .ticker-track{display:inline-flex;align-items:center;gap:28px;padding:14px 0;animation:ticker 32s linear infinite}
 .ticker-track span{font-family:var(--display);text-transform:uppercase;font-size:1.35rem;letter-spacing:.04em}
-.ticker-track svg{width:22px;height:22px;flex-shrink:0}
+.ticker-track .dot{width:9px;height:9px;border-radius:50%;background:var(--pink);flex-shrink:0}
 @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.ticker-track{animation:none}}
 
