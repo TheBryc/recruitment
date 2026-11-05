@@ -128,7 +128,9 @@ document.addEventListener('bryc:view', e => {
   if (lastView === 'apply' && name !== 'apply') saveSoon(0);
   if (lastView === 'portal' && name !== 'portal') flash('');
   if (name === 'task') renderTask();
-  if (name === 'account') resetAccountForms();
+  // Coming from Apply (or another signed-in page): new families need an account.
+  // Coming from Sign in: returning families need the sign-in form.
+  if (name === 'account') showAuth(pending ? 'signup' : 'signin');
   lastView = name;
 });
 
@@ -139,7 +141,6 @@ function showAuth(which) {
   $$('#account .auth-form').forEach(f => { f.hidden = f.dataset.auth !== which; });
   $('#account-message').textContent = '';
 }
-function resetAccountForms() { $('#account-message').textContent = ''; }
 
 function busy(button, on, label) {
   if (on) { button.dataset.label = button.textContent; button.textContent = label; button.disabled = true; }
