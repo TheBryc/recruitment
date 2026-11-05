@@ -81,7 +81,7 @@ test('submitting requires a confirmed email and an open program year', () => {
   const unverified = as('uid-casey', 'casey@example.com', false);
   assert.match(unverified('submitApplication', {studentKey, fields: appFields}).error, /confirm your email/);
   const casey = as('uid-casey', 'casey@example.com');
-  assert.match(casey('submitApplication', {studentKey, fields: Object.assign({}, appFields, {'Program Year': '2026-2027'})}).error, /closed/);
+  assert.match(casey('submitApplication', {studentKey, fields: Object.assign({}, appFields, {'Program Year': '2025-2026'})}).error, /closed/);
   assert.match(casey('submitApplication', {studentKey, fields: {'Program Year': '2027-2028'}}).error, /Missing required/);
 });
 

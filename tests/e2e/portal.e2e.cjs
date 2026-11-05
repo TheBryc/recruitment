@@ -10,7 +10,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   const ctx = await browser.newContext({viewport: {width: 1280, height: 900}});
   await ctx.route(/gstatic\.com\/firebasejs\/.*\/(firebase-[a-z]+\.js)/, r => { const f = r.request().url().match(/(firebase-[a-z]+\.js)/)[1];
     r.fulfill({contentType: 'text/javascript', headers: {'Access-Control-Allow-Origin': '*'}, body: fs.readFileSync(D + '/' + fakes[f])}); });
-  await ctx.route(/portal-config\.js/, r => r.fulfill({contentType: 'text/javascript', body: "window.BRYC_PORTAL={submitUrl:'http://localhost:8791/exec',openProgramYears:['2027-2028']};"}));
+  await ctx.route(/portal-config\.js/, r => r.fulfill({contentType: 'text/javascript', body: "window.BRYC_PORTAL={submitUrl:'http://localhost:8791/exec',openProgramYears:['2026-2027','2027-2028']};"}));
   await ctx.route(/typekit|use\.typekit|googletagmanager|thebryc\.org/, r => r.abort());
   const page = await ctx.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -52,13 +52,14 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(await page.inputValue('#application-demo [name=guardianFirst]') === 'Casey', 'application guardian prefilled');
   ok(await page.inputValue('#application-demo [name=homeZip]') === '70802', 'address prefilled');
   ok(await page.inputValue('#application-demo [name=guardianRelationshipOther]') === 'Godmother', 'relationship other prefilled');
-  ok(await page.inputValue('#application-demo [name=academicYear]') === '2027-2028', 'only open year auto-selected');
+  ok(await page.evaluate(() => [...document.querySelector('[name=academicYear]').options].filter(o => o.value).map(o => o.value).join()) === '2026-2027,2027-2028', 'both open years offered');
+  ok(await page.inputValue('#application-demo [name=academicYear]') === '', 'no year picked for them when two are open');
   let s = await admin(); ok(s.sheets.HOUSEHOLDS[1][0] === 'HH-0001' && s.sheets.HOUSEHOLDS[1][6] === 'Other: Godmother', 'household row saved: ' + s.sheets.HOUSEHOLDS[1].slice(0, 7));
 
   // 3. Fill the application and autosave
   await page.evaluate(() => {
     const a = BRYCApp.serialize();
-    Object.assign(a, {studentFirst: 'Jordan', studentLast: 'Sample', studentEmail: 'jordan@example.com', studentPhone: '2255550199', currentGrade: '8', futureGrade: '9', futureSchool: 'Thrive Academy',
+    Object.assign(a, {academicYear: '2027-2028', studentFirst: 'Jordan', studentLast: 'Sample', studentEmail: 'jordan@example.com', studentPhone: '2255550199', currentGrade: '8', futureGrade: '9', futureSchool: 'Thrive Academy',
       studentGender: 'Female', heardAbout: 'letter', selfReportedGrades: 'Math A', growth: 'Essay one', comfort: 'Essay two', support: 'Essay three', studentCertification: 'yes', studentSignature: 'Jordan Sample',
       homeLanguage: 'English', householdIncome: '$30,001–$48,000', guardianSignature: 'Casey Sample', householdMembers: '3',
       source: [...BRYCApp.form.elements.source.options].find(o => o.value).value, policyAck: [BRYCApp.form.elements.policyAck.value]});

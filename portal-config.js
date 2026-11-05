@@ -4,5 +4,5 @@
 window.BRYC_PORTAL = {
   submitUrl: 'https://script.google.com/macros/s/AKfycbyM-d6orJlQzrAQN8W7AZiBWB-3oyFgSxtsmXZmKxkyiYVjz_nRrRL6UWq5ORJMpqYqzQ/exec',
   // School years families can apply for. Must match PORTAL.openProgramYears in Portal.gs.
-  openProgramYears: ['2027-2028']
+  openProgramYears: ['2026-2027', '2027-2028']
 };
