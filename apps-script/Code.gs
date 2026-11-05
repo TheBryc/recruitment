@@ -687,6 +687,7 @@ function buildProfileUpdates(response, identity, formType) {
 
     profile['Program Year'] = cleanValue(pick(response, ['Program Year']));
     profile['Home Language'] = cleanValue(pick(response, ['Home Language']));
+    profile['Household Income Range'] = cleanValue(pick(response, ['Household Income Range']));
 
     const street = [pick(response, ['Street Address']), pick(response, ['Apartment or Unit'])]
       .map(cleanValue).filter(Boolean).join(' ');
