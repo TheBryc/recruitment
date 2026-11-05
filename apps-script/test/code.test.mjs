@@ -2,71 +2,10 @@
 // Usage (from apps-script/test): node --test code.test.mjs
 import {test, beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import vm from 'node:vm';
-
-const HEADERS = {
-  REFERRALS_RAW: ['Timestamp', 'Referrer First Name', 'Referrer Last Name', 'Referrer Email', 'Referrer Phone', 'Which best describes you?', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'School', 'School Not Listed', 'Current Grade', 'Student Cell Phone', 'Student Email', 'Anything Else We Should Know', 'Has Guardian Contact', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'BRYC ID'],
-  INQUIRIES_RAW: ['Timestamp', 'Submitted By', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'School', 'School Not Listed', 'Current Grade', 'Student Phone', 'Student Email', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'How did you first hear about BRYC?', 'BRYC ID'],
-  APPLICATIONS_RAW: ['Timestamp', 'Program Year', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'Student Email', 'Student Phone', 'Current Grade', 'Grade in Program Year', 'School', 'School Not Listed', 'BRYC Relative', 'Relative Names', 'Academic Record', 'ACT Taken', 'ACT Report', 'Self-Reported Grades', 'Short Response #1', 'Short Response #2', 'Short Response #3', 'Activities Outside Class', 'How did you first hear about BRYC?', 'Student Certification', 'Student Signature', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Email', 'Guardian Phone', 'Street Address', 'Apartment or Unit', 'City', 'State', 'ZIP Code', 'Parish or County', 'Household Members', 'Home Language', 'Need Circumstances', 'Policy Acknowledgment', 'Guardian Signature', 'BRYC ID', 'Household Income Range'],
-  ID_REGISTRY: ['BRYC ID', 'First Name', 'Last Name', 'Student Email', 'Student Phone', 'Guardian Email', 'Guardian Phone', 'School', 'First Entry Source', 'Date Created'],
-  MASTER: ['BRYC ID', 'Fellow First Name', 'Fellow Last Name', 'Gender', 'Program Year', 'Grade', 'School', 'Student Email', 'Student Phone', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone Number', 'Guardian Email', 'Home Address', 'Home Language', 'Relative in BRYC', 'Recruitment Source', 'Referred By', 'Referral Date', 'Inquiry Date', 'Application Date', 'Application Status', 'Decision', 'Decision Date', 'Onboarding Status', 'Onboarding Date', 'Income Verification Required', 'Income Verification Status', 'Current RAM Status', 'Next Action', 'Last Activity', 'RAM Notes', 'Match Status', 'Application Link', 'Onboarding Link', 'Income Verification Link', 'Data Authority Rank', 'Household Income Range']
-};
-
-// ---------- Minimal Apps Script stand-ins ----------
-class Sheet {
-  constructor(name, id, headers) { this.name = name; this.id = id; this.rows = headers ? [headers.slice()] : []; }
-  getName() { return this.name; }
-  getSheetId() { return this.id; }
-  getLastRow() { let n = 0; this.rows.forEach((r, i) => { if (r.some(v => v !== '' && v !== undefined && v !== null)) n = i + 1; }); return n; }
-  getLastColumn() { return Math.max(0, ...this.rows.map(r => { let n = 0; r.forEach((v, i) => { if (v !== '' && v !== undefined && v !== null) n = i + 1; }); return n; })); }
-  cell(r, c) { return (this.rows[r - 1] || [])[c - 1] ?? ''; }
-  set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
-  getRange(r, c, nr = 1, nc = 1) { return new Range(this, r, c, nr, nc); }
-  appendRow(values) { const r = this.getLastRow() + 1; values.forEach((v, i) => this.set(r, i + 1, v)); }
-}
-class Range {
-  constructor(s, r, c, nr, nc) { Object.assign(this, {s, r, c, nr, nc}); }
-  grid(fn) { return Array.from({length: this.nr}, (_, i) => Array.from({length: this.nc}, (_, j) => fn(this.s.cell(this.r + i, this.c + j)))); }
-  getValues() { return this.grid(v => v); }
-  getDisplayValues() { return this.grid(v => v instanceof Date ? v.toISOString() : String(v ?? '')); }
-  getValue() { return this.s.cell(this.r, this.c); }
-  setValue(v) { this.s.set(this.r, this.c, v); return this; }
-  setValues(vals) { vals.forEach((row, i) => row.forEach((v, j) => this.s.set(this.r + i, this.c + j, v))); return this; }
-  getSheet() { return this.s; }
-  getRow() { return this.r; }
-  getLastRow() { return this.r + this.nr - 1; }
-  getColumn() { return this.c; }
-  getLastColumn() { return this.c + this.nc - 1; }
-  createTextFinder(text) {
-    const range = this; let exact = false;
-    return { matchEntireCell(x) { exact = x; return this; }, findNext() {
-      for (let i = 0; i < range.nr; i++) for (let j = 0; j < range.nc; j++) {
-        const v = String(range.s.cell(range.r + i, range.c + j));
-        if (exact ? v === text : v.includes(text)) return new Range(range.s, range.r + i, range.c + j, 1, 1);
-      } return null; } };
-  }
-}
+import {HEADERS, Range, createEnv} from './harness.mjs';
 
 let sheets, ctx, savedFiles;
-function load() {
-  sheets = {}; let id = 1;
-  for (const [name, headers] of Object.entries(HEADERS)) sheets[name] = new Sheet(name, id++, headers);
-  savedFiles = [];
-  const cache = new Map();
-  ctx = {
-    console: {error() {}, warn() {}, log() {}},
-    SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }) },
-    LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
-    CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
-    ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'folder123' }) },
-    Utilities: { base64Decode: d => Buffer.from(d, 'base64'), newBlob: (bytes, type, name) => ({bytes, type, name}) },
-    DriveApp: { getFolderById: () => ({ createFile: blob => { savedFiles.push(blob); return { getUrl: () => 'https://drive/' + blob.name, getSize: () => blob.bytes.length }; } }) }
-  };
-  vm.createContext(ctx);
-  vm.runInContext(readFileSync(new URL('../Code.gs', import.meta.url), 'utf8'), ctx);
-}
+function load() { ({sheets, ctx, savedFiles} = createEnv()); }
 const isDate = v => Object.prototype.toString.call(v) === '[object Date]';
 // Submit, then run the every-minute job the way the trigger would.
 const submit = body => ctx.doPost({postData: {contents: JSON.stringify(body)}}).body;
