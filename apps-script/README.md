@@ -65,7 +65,21 @@ Emails go to the account email, the household guardian email, and the guardian e
 2. **Email sender name (optional).** In **Authentication → Templates**, edit the email verification and password reset templates. Set the sender name to BRYC Admissions and the reply-to to admissions@thebryc.org.
 3. **Add Portal.gs.** In Apps Script, click **+ → Script**, name it `Portal`, paste in `Portal.gs`, and save. Replace `Code.gs` with the new version too.
 4. **Income documents folder (recommended).** Create a Drive folder for income documents that only you and approved staff can open. Add its ID as the script property `INCOME_FOLDER_ID`. Without it, income documents go to the regular upload folder.
-5. **Deploy a new version.** **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Google will ask you to approve two new permissions: sending email as you, and connecting to an external service (that's the sign-in check). The URL stays the same.
+5. **List the script's permissions.** In Apps Script, open **Project Settings** (gear icon) and check **Show "appsscript.json" manifest file in editor**. Open `appsscript.json` and make sure it has this `oauthScopes` list (keep the other settings as they are):
+
+   ```json
+   "oauthScopes": [
+     "https://www.googleapis.com/auth/spreadsheets",
+     "https://www.googleapis.com/auth/drive",
+     "https://www.googleapis.com/auth/script.external_request",
+     "https://www.googleapis.com/auth/script.send_mail",
+     "https://www.googleapis.com/auth/script.scriptapp",
+     "https://www.googleapis.com/auth/script.container.ui"
+   ],
+   ```
+
+   Then run any function from the editor and approve every permission Google lists. Without `script.external_request`, every portal request fails with "Something went wrong on our end," and the execution log says *You do not have permission to call UrlFetchApp.fetch*.
+6. **Deploy a new version.** **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Google will ask you to approve two new permissions: sending email as you, and connecting to an external service (that's the sign-in check). The URL stays the same.
 
 ## Tests
 
