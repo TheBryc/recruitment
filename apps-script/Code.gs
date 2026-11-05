@@ -49,7 +49,8 @@ const CONFIG = {
     'Recruitment Source', 'Application Status', 'Decision', 'Decision Date',
     'Onboarding Status', 'Onboarding Date', 'Income Verification Required',
     'Income Verification Status', 'Current RAM Status', 'Next Action',
-    'Last Activity', 'Match Status', 'RAM Notes', 'Data Authority Rank'
+    'Last Activity', 'Match Status', 'RAM Notes', 'Data Authority Rank',
+    'Household ID', 'Decision Released', 'Family Notified', 'Income Request Sent'
   ],
 
   // Next Action values the script sets. Anything else in that column
@@ -89,6 +90,9 @@ function doPost(e) {
   try {
 
     const payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+
+    // Signed-in family portal requests (see Portal.gs).
+    if (payload.action) return handlePortal(payload);
 
     // Bots fill the hidden "website" field. Pretend success so they move on.
     if (payload.website) return jsonResponse({ ok: true });
@@ -149,9 +153,12 @@ function cleanPayloadFields(raw) {
 }
 
 
-function saveUpload(file, fields) {
+// folderProperty names the Script Property holding the Drive folder ID.
+// INCOME_FOLDER_ID falls back to UPLOAD_FOLDER_ID until it is set.
+function saveUpload(file, fields, folderProperty) {
 
-  const folderId = PropertiesService.getScriptProperties().getProperty('UPLOAD_FOLDER_ID');
+  const props = PropertiesService.getScriptProperties();
+  const folderId = props.getProperty(folderProperty || 'UPLOAD_FOLDER_ID') || props.getProperty('UPLOAD_FOLDER_ID');
   if (!folderId) throw new Error('UPLOAD_FOLDER_ID script property is not set.');
 
   if (!CONFIG.allowedFileTypes.includes(file.mimeType)) {
@@ -295,6 +302,13 @@ function processPending() {
       });
     });
 
+    // Tell portal families about status changes and released decisions.
+    try {
+      sendStatusEmails(ss);
+    } catch (err) {
+      console.error('Family emails: ' + err.message);
+    }
+
   } finally {
 
     lock.releaseLock();
@@ -357,6 +371,9 @@ function processResponseRow(ss, sourceSheet, responseRow) {
     ss, brycId, response, identity, formConfig,
     rowLink(ss, sourceSheet, responseRow), idResult.matchStatus
   );
+
+  // Portal applications: link the BRYC ID back to the family's account.
+  if (formType === 'application') linkPortalApplication(ss, response, brycId);
 }
 
 
@@ -688,6 +705,7 @@ function buildProfileUpdates(response, identity, formType) {
     profile['Program Year'] = cleanValue(pick(response, ['Program Year']));
     profile['Home Language'] = cleanValue(pick(response, ['Home Language']));
     profile['Household Income Range'] = cleanValue(pick(response, ['Household Income Range']));
+    profile['Household ID'] = cleanValue(pick(response, ['Household ID']));
 
     const street = [pick(response, ['Street Address']), pick(response, ['Apartment or Unit'])]
       .map(cleanValue).filter(Boolean).join(' ');

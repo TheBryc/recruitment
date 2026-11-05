@@ -45,7 +45,7 @@ if (!validConfig) {
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
       import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
     ]);
-    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const app = getApps().some(a => a.name === '[DEFAULT]') ? getApp() : initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(app);
     const db = dbSdk.getFirestore(app);
     currentAuth = auth; signOutFn = authSdk.signOut;

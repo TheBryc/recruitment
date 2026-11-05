@@ -6,7 +6,7 @@ import {getAuth} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.
 import {getFirestore,collection,doc,getDocs,writeBatch,updateDoc} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 const $=s=>document.querySelector(s);
 const bar=$('#workspace-storage-status'),hint=$('#workspace-storage-help'),init=$('#workspace-seed-cloud');
-const app=getApps().length?getApp():initializeApp(firebaseConfig);
+const app=getApps().some(a=>a.name==='[DEFAULT]')?getApp():initializeApp(firebaseConfig);
 const auth=getAuth(app),db=getFirestore(app);
 let session=0,uid=null,isActive=false;
 const groups=['prospects','applications','tasks'];

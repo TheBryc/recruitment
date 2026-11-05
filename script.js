@@ -4,9 +4,11 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 // Each page change is a browser history entry, so the Back button works.
 // Pages opened from history (Back, Forward, a shared link) don't add a new entry.
 let movedInSite=false;
-function view(name,fromHistory){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});const url=name==='home'?location.pathname:'#'+name;
- if(fromHistory)history.replaceState(null,'',url);else if(location.hash!==(name==='home'?'':'#'+name)){history.pushState(null,'',url);movedInSite=true;}}
-$$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
+function view(name,fromHistory){if(window.BRYCGuard)name=window.BRYCGuard(name)||name;$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});const url=name==='home'?location.pathname:'#'+name;
+ if(fromHistory)history.replaceState(null,'',url);else if(location.hash!==(name==='home'?'':'#'+name)){history.pushState(null,'',url);movedInSite=true;}
+ document.dispatchEvent(new CustomEvent('bryc:view',{detail:{name}}));}
+window.BRYCView=view;
+document.addEventListener('click',e=>{const n=e.target.closest('[data-view]');if(!n||n.hasAttribute('data-scroll'))return;e.preventDefault();view(n.dataset.view);});$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 // Open the page named in the link, so links like #refer or #apply can be shared.
 const openFromHash=()=>{const name=location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
 openFromHash();window.addEventListener('popstate',openFromHash);window.addEventListener('hashchange',openFromHash);
@@ -30,11 +32,12 @@ function formErrors(form){
  form.querySelectorAll('.field-error').forEach(e=>e.remove());form.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));
  let first=null;const fail=(el,msg)=>{el.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent=msg;el.insertAdjacentElement('afterend',n);first??=el;};
  form.querySelectorAll('input,select,textarea').forEach(el=>{if(el.closest('[hidden]')||el.type==='radio'||el.classList.contains('school-search')||el.classList.contains('school-select'))return;
+  if(el.type==='checkbox'){if(el.required&&!el.checked)fail(el.closest('label')||el,'Please check this box to continue.');return;}
   const v=el.value.trim();
   if(el.required&&!v)fail(el,'This question is required.');
   else if(v&&el.type==='email'&&el.validity.typeMismatch)fail(el,'Please enter a valid email address.');
   else if(v&&el.type==='tel'&&v.replace(/\D/g,'').length<10)fail(el,'Please enter a 10-digit phone number.');});
- form.querySelectorAll('[data-required-radio]').forEach(group=>{if(!form.elements.namedItem(group.dataset.requiredRadio).value)fail(group.querySelector('.role-choice'),'Please choose one.');});
+ form.querySelectorAll('[data-required-radio]').forEach(group=>{if(group.closest('[hidden]'))return;if(!form.elements.namedItem(group.dataset.requiredRadio).value)fail(group.querySelector('.role-choice')||group,'Please choose one.');});
  form.querySelectorAll('[data-school-control]').forEach(school=>{if(school.closest('[hidden]'))return;const sel=school.querySelector('.school-select');
   if(!sel.value)fail(school.querySelector('.school-search'),'Choose a school from the list, or select “My school isn’t listed.”');
   else if(sel.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');});
@@ -131,8 +134,11 @@ function initSchoolCombobox(wrapper){
 }
 $$('[data-school-control]').forEach(initSchoolCombobox);
 if(inquiry)changeRole();
+window.BRYCForms={collectAnswers,collectFiles,formErrors,syncSchoolControl,OTHER};
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');
+const openYears=(window.BRYC_PORTAL||{}).openProgramYears;
+if(Array.isArray(openYears))[...year.options].forEach(o=>{if(o.value&&!openYears.includes(o.value))o.remove();});
 function updateYear(){
  const upcoming=year.value==='2027-2028',current=year.value==='2026-2027';
  [['upcoming-grade-field',upcoming],['current-school-field',current],['upcoming-school-field',upcoming]].forEach(([id,show])=>{
@@ -203,5 +209,33 @@ function review(){const target=$('#application-review');target.replaceChildren()
  const node=row.querySelector('span');node.textContent+=(node.textContent?', ':'')+value;
  }}
 function showStep(){steps.forEach((s,i)=>s.classList.toggle('active',i===step));$('#wizard-count').textContent=`Step ${step+1} of ${steps.length} · ${names[step]}`;const prev=$('#wizard-back'),next=$('#wizard-next');prev.disabled=step===0;next.textContent=step===steps.length-1?(SUBMIT_URL?'Submit application':'Preview complete (no submission)'):'Continue →';const milestones=$$('.wizard-milestones li');milestones.forEach((x,i)=>{x.classList.toggle('active',i===step);x.classList.toggle('done',i<step);if(i===step)x.setAttribute('aria-current','step');else x.removeAttribute('aria-current')});$('#wizard-fill').style.width=((step+1)/steps.length*100)+'%';if(step===steps.length-1)review();clearErrors();const y=$('#apply').getBoundingClientRect().top+window.scrollY-80;window.scrollTo({top:Math.max(0,y),behavior:'instant'});}
-$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(step===steps.length-1){sendForm('application',app,$('#wizard-notice'),$('#wizard-next'),'Your application was submitted. We will be in touch with next steps.');return;}if(!validateStep(step))return;step++;showStep()});showStep();
+$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(step===steps.length-1){if(window.BRYCPortal?.active){window.BRYCPortal.submitApplication($('#wizard-notice'),$('#wizard-next'));return;}sendForm('application',app,$('#wizard-notice'),$('#wizard-next'),'Your application was submitted. We will be in touch with next steps.');return;}if(!validateStep(step))return;step++;showStep()});showStep();
+// Application state for portal drafts. Answers are keyed by field name, so a
+// saved draft restores exactly; files can't be saved and are re-attached.
+function setSchool(wrapper,value,otherText){const sel=wrapper.querySelector('.school-select'),search=wrapper.querySelector('.school-search');
+ if(value){sel.replaceChildren(new Option(value===OTHER?'My school isn’t listed':value,value));sel.value=value;search.value=value===OTHER?'My school isn’t listed':value;}
+ else{sel.replaceChildren(new Option('Select school',''));sel.value='';search.value='';}
+ syncSchoolControl(wrapper);const other=wrapper.querySelector('.other-school input');if(other&&otherText)other.value=otherText;}
+function serialize(){const out={};
+ [...app.elements].forEach(el=>{if(!el.name||el.type==='file'||el.name==='website'||el.disabled&&el.type!=='checkbox')return;
+  if(el.type==='checkbox'){(out[el.name]=out[el.name]||[]);if(el.checked)out[el.name].push(el.value);return;}
+  if(el.type==='radio'){if(el.checked)out[el.name]=el.value;return;}
+  if(el.value)out[el.name]=el.value;});
+ return out;}
+function resetApp(){app.reset();app.querySelectorAll('[data-school-control]').forEach(w=>setSchool(w,''));updateYear();syncRelative();
+ app.querySelectorAll('select[data-other]').forEach(el=>el.dispatchEvent(new Event('change')));
+ if(year.options.length===2){year.selectedIndex=1;updateYear();}
+ step=0;showStep();clearErrors();}
+function restore(a){resetApp();a=a||{};
+ if(a.academicYear){year.value=a.academicYear;updateYear();}
+ ['currentGrade','futureGrade'].forEach(n=>{if(a[n]){app.elements.namedItem(n).value=a[n];}});updateAcademic();
+ [...app.elements].forEach(el=>{const v=a[el.name];if(!el.name||v===undefined||['academicYear','currentGrade','futureGrade'].includes(el.name)||el.type==='file')return;
+  if(el.classList.contains('school-select')){setSchool(el.closest('[data-school-control]'),v,a[el.name+'Other']);return;}
+  if(el.type==='checkbox')el.checked=Array.isArray(v)&&v.includes(el.value);
+  else if(el.type==='radio')el.checked=el.value===v;
+  else el.value=v;});
+ syncRelative();app.querySelectorAll('select[data-other],select[name="actTaken"]').forEach(el=>el.dispatchEvent(new Event('change')));
+ step=0;showStep();clearErrors();}
+window.BRYCApp={form:app,serialize,restore,reset:resetApp};
+document.dispatchEvent(new CustomEvent('bryc:app-ready'));
 })();

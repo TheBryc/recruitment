@@ -1,6 +1,6 @@
 # RAM HQ script
 
-`Code.gs` is the Apps Script attached to **PY28 RAM HQ**. It receives submissions from the admissions site (referral, interest form, application), gives each student a BRYC ID, and keeps MASTER up to date.
+`Code.gs` and `Portal.gs` are the Apps Script attached to **PY28 RAM HQ**. `Code.gs` receives submissions from the admissions site (referral, interest form, application), gives each student a BRYC ID, and keeps MASTER up to date. `Portal.gs` runs the family portal: accounts, households, saved drafts, status, decision release, emails, and follow-up forms.
 
 ## What it does
 
@@ -13,7 +13,7 @@
 
 Uploaded documents go to a private Drive folder. The sheet stores a link.
 
-The web app can only add submissions. It has no way to read or return data from RAM HQ.
+The public forms can only add submissions. The portal returns data only to a signed-in family, and only for their own household: every request carries a Firebase sign-in token that the script checks with Google before doing anything.
 
 ## Install or update (about 15 minutes)
 
@@ -39,10 +39,40 @@ If a submission can't be processed, its BRYC ID cell says **NEEDS REVIEW**. Fix 
 
 The old `onFormSubmit` trigger can stay. It does nothing unless a Google Form is linked to one of the raw tabs.
 
+## Family portal
+
+Families create an account at `#account`, enter their household once, and start an application for each student. Drafts save as they type. After submitting, they see the status in their portal and get an email at each step.
+
+**How a student moves through it**
+
+| Stage | What sets it | Family sees | Email |
+| --- | --- | --- | --- |
+| Started | Family saves a draft | Application started | None |
+| Submitted | Family submits | Application received | "We received {name}'s BRYC application" |
+| Under review | You set Application Status to Under review | Under review | "{name}'s application is under review" |
+| Decision | You check **Decision Released** in MASTER | The decision (LISTS → Family Sees) | "A decision is ready". It never states the decision; they read it in the portal. |
+| Next steps | Decision is Admitted | Onboarding, transportation, and income verification (only if Income Verification Required = Yes) | "One more step: income verification" when it's required |
+
+Emails go to the account email, the household guardian email, and the guardian email on the application (no duplicates). They're sent from your account as **BRYC Admissions** with replies going to admissions@thebryc.org. Each one is logged in **EMAIL_LOG**; **Family Notified** in MASTER records the last one sent, so nothing is sent twice. Status emails go out with the 15-minute background job.
+
+**Follow-up forms** are switched on in `Portal.gs` under `PORTAL.tasks`. Income verification is on. Onboarding and transportation are built but set to `open: false` until their questions are final; families see "Opens soon." To open one, change it to `open: true`, save, and deploy a new version. If a family declines admission in onboarding, MASTER's Decision becomes Declined automatically.
+
+**Open program years** are listed in both `PORTAL.openProgramYears` (Portal.gs) and `openProgramYears` (portal-config.js). Keep them the same.
+
+### Portal setup (one time)
+
+1. **Firebase sign-in.** In the [Firebase console](https://console.firebase.google.com/) for `bryc-recruitment`, go to **Authentication → Sign-in method**, add **Email/Password**, and turn it on (leave "Email link" off). Then go to **Authentication → Settings → Authorized domains** and make sure `thebryc.github.io` is listed.
+2. **Email sender name (optional).** In **Authentication → Templates**, edit the email verification and password reset templates. Set the sender name to BRYC Admissions and the reply-to to admissions@thebryc.org.
+3. **Add Portal.gs.** In Apps Script, click **+ → Script**, name it `Portal`, paste in `Portal.gs`, and save. Replace `Code.gs` with the new version too.
+4. **Income documents folder (recommended).** Create a Drive folder for income documents that only you and approved staff can open. Add its ID as the script property `INCOME_FOLDER_ID`. Without it, income documents go to the regular upload folder.
+5. **Deploy a new version.** **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Google will ask you to approve two new permissions: sending email as you, and connecting to an external service (that's the sign-in check). The URL stays the same.
+
 ## Tests
 
-`test/code.test.mjs` runs the script against an in-memory copy of RAM HQ's headers:
+`test/code.test.mjs` and `test/portal.test.mjs` run the scripts against an in-memory copy of RAM HQ's headers:
 
 ```
-cd apps-script/test && node --test code.test.mjs
+cd apps-script/test && node --test
 ```
+
+`tests/e2e` runs the full family journey in a browser against the same in-memory sheets. See its README.
