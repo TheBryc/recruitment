@@ -404,6 +404,7 @@ function taskList(s) {
 
 function initPortal() {
   $('#portal-signout').addEventListener('click', signOut);
+  $('#nav-signout').addEventListener('click', () => { $('.topbar nav')?.classList.remove('show'); signOut(); });
   $('#add-student').addEventListener('click', () => { if (!state?.household) return; loadNew(); go('apply'); });
   $('#verify-resend').addEventListener('click', async e => {
     const b = e.currentTarget; busy(b, true, 'Sending…');
@@ -584,6 +585,7 @@ function initTasks() {
 function setNav() {
   const label = user ? 'My portal' : 'Sign in';
   $$('#nav-portal').forEach(n => { n.textContent = label; });
+  $('#nav-signout').hidden = !user;
 }
 
 async function signOut() {
