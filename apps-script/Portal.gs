@@ -26,7 +26,7 @@ const PORTAL = {
   maxDraftChars: 45000,
 
   // Program years families can apply for. Keep in step with portal-config.js.
-  openProgramYears: ['2027-2028'],
+  openProgramYears: ['2026-2027', '2027-2028'],
 
   // Follow-up forms. A closed form shows as "opens soon" in the portal.
   tasks: {
