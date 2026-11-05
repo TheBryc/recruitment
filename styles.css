@@ -185,7 +185,16 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .faq-box summary::-webkit-details-marker{display:none}
 .faq-box summary::after{content:"+";font-size:1.6rem;font-weight:400;color:var(--pink-bright);line-height:1}
 .faq-box details[open] summary::after{content:"−"}
-.faq-box details p{color:var(--on-dark-muted);margin:-6px 0 24px;max-width:720px}
+.faq-group{font-size:clamp(1.3rem,2.4vw,1.7rem);margin:48px 0 8px;color:var(--pink-text)}
+.faq-group:first-of-type{margin-top:8px}
+.faq-answer{color:var(--on-dark-muted);margin:-6px 0 24px;max-width:740px}
+.faq-answer p{margin:0 0 12px}
+.faq-answer ul{margin:0 0 12px;padding-left:22px}
+.faq-answer li{margin-bottom:6px}
+.faq-answer a,.inline-link{color:var(--pink-text);font-weight:600}
+.inline-link{border:0;background:none;padding:0;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+.faq-note{font-size:.95rem}
+.faq-box+.faq-group{margin-top:48px}
 .faq-contact{margin-top:48px;color:var(--on-dark-muted)}
 
 /* Application (inside its white card) */
