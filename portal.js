@@ -67,11 +67,24 @@ async function api(action, data = {}) {
   if (!SUBMIT_URL) throw new Error('The portal is in preview mode. Nothing was saved.');
   if (!user) throw new Error('Please sign in again.');
   const idToken = await user.getIdToken();
-  let out;
+  // Give up after a while so families never sit on a spinner. Uploads get longer.
+  const limit = /^submit/.test(action) ? 120000 : 45000;
+  const stop = new AbortController(), timer = setTimeout(() => stop.abort(), limit);
+  let res, out;
   try {
-    const res = await fetch(SUBMIT_URL, {method: 'POST', body: JSON.stringify(Object.assign({action, idToken}, data))});
-    out = await res.json();
-  } catch (e) { throw new Error("We couldn't reach BRYC. Check your internet connection and try again."); }
+    res = await fetch(SUBMIT_URL, {method: 'POST', body: JSON.stringify(Object.assign({action, idToken}, data)), signal: stop.signal});
+  } catch (e) {
+    clearTimeout(timer);
+    console.error('BRYC portal: request failed', action, e);
+    throw new Error(e?.name === 'AbortError' ? 'BRYC is taking too long to respond. Please try again in a minute.' : "We couldn't reach BRYC. Check your internet connection and try again.");
+  }
+  clearTimeout(timer);
+  const text = await res.text();
+  try { out = JSON.parse(text); }
+  catch (e) {
+    console.error('BRYC portal: unexpected response', action, res.status, text.slice(0, 500));
+    throw new Error('BRYC sent back an unexpected response. Please try again, or contact BRYC admissions if this keeps happening.');
+  }
   if (!out.ok) throw new Error(out.error || 'Something went wrong. Please try again.');
   if (out.state) setState(out.state);
   return out;
@@ -541,14 +554,22 @@ async function onUser(u) {
   if (target === 'apply') {
     if (state && chooseApplication()) go('apply', firstTime); else { go('portal', firstTime); applyAfterLoad = !state; }
   } else if (target) go(target, firstTime);
-  try {
-    $('#portal-error').textContent = '';
-    await api('load');
-  } catch (err) {
-    $('#portal-error').textContent = err.message;
-    if (!state) $('#portal-loading').hidden = true;
-  }
+  await loadPortal();
   if (applyAfterLoad && activeView() === 'portal' && chooseApplication()) go('apply', true);
+}
+
+// Load the portal; on failure, say why and offer a retry.
+async function loadPortal() {
+  const box = $('#portal-error');
+  box.textContent = '';
+  if (!state) $('#portal-loading').hidden = false;
+  try { await api('load'); return true; }
+  catch (err) {
+    if (!state) $('#portal-loading').hidden = true;
+    box.replaceChildren(el('span', {text: err.message + ' '}),
+      el('button', {class: 'inline-link', type: 'button', text: 'Try again', onclick: () => loadPortal()}));
+    return false;
+  }
 }
 
 async function start() {
