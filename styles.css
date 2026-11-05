@@ -470,3 +470,11 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .back-link{margin:0 0 28px}@media(max-width:600px){.back-link{margin:0 0 20px}}
 /* Links like #apply open at the top of the page, not tucked under the sticky header. */
 .view{scroll-margin-top:200px}
+/* Second parent or guardian */
+.household-g2{margin:6px 0 4px}
+.add-g2{min-height:42px;padding:8px 18px;margin:4px 0 8px}
+.g2-head{margin:10px 0 6px}
+.g2-head .part-title{margin:0}
+.household-summary dt.g2-start{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+#hh-summary-add-g2{margin-top:18px}
+.second-guardian h3{margin-top:8px}

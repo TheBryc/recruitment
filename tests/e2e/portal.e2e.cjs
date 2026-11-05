@@ -46,12 +46,28 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.selectOption('[name=hhRelationship]', 'Other'); await page.fill('[name=hhRelationshipOther]', 'Godmother');
   await page.fill('[name=hhPhone]', '(225) 555-0123'); await page.fill('[name=hhStreet]', '123 Main St');
   await page.fill('[name=hhCity]', 'Baton Rouge'); await page.selectOption('[name=hhState]', 'LA'); await page.fill('[name=hhZip]', '70802');
+  // Second guardian with a different address
+  ok(await page.isVisible('#hh-add-g2') && !(await page.isVisible('#hh-g2')), 'second guardian starts closed behind a button');
+  await page.click('#hh-add-g2');
+  ok(await page.isVisible('#hh-g2') && !(await page.isVisible('#hh-g2-address')), 'second guardian fields open, address waits for the question');
+  await page.click('#household-form button[type=submit]');
+  ok((await page.textContent('#household-message')).includes('highlighted'), 'second guardian fields required once added');
+  await page.fill('[name=hhG2First]', 'Morgan'); await page.fill('[name=hhG2Last]', 'Sample');
+  await page.selectOption('[name=hhG2Relationship]', 'Father'); await page.fill('[name=hhG2Phone]', '(225) 555-0456');
+  await page.check('input[name=hhG2Different][value=yes]');
+  ok(await page.isVisible('#hh-g2-address'), 'different address reveals address fields');
+  await page.fill('[name=hhG2Street]', '9 Oak St'); await page.fill('[name=hhG2City]', 'Zachary');
+  await page.selectOption('[name=hhG2State]', 'LA'); await page.fill('[name=hhG2Zip]', '70791');
+  await page.screenshot({path: `${process.env.SHOTS || D}/02b-household-g2.png`, fullPage: true});
   await page.click('#household-form button[type=submit]');
   await page.waitForFunction(() => document.querySelector('.view.active')?.id === 'apply', null, {timeout: 5000}).catch(() => {});
   ok(await active() === 'apply', 'after first household save, the application opens (they asked to apply)');
   ok(await page.inputValue('#application-demo [name=guardianFirst]') === 'Casey', 'application guardian prefilled');
   ok(await page.inputValue('#application-demo [name=homeZip]') === '70802', 'address prefilled');
   ok(await page.inputValue('#application-demo [name=guardianRelationshipOther]') === 'Godmother', 'relationship other prefilled');
+  ok(await page.isChecked('#application-demo input[name=secondGuardian][value=yes]') && await page.inputValue('#application-demo [name=g2First]') === 'Morgan'
+    && await page.isChecked('#application-demo input[name=g2Different][value=yes]') && await page.inputValue('#application-demo [name=g2Zip]') === '70791', 'second guardian prefilled on the application');
+  ok(await page.evaluate(() => !document.querySelector('#g2-fields').hidden && !document.querySelector('#g2-address').hidden), 'second guardian sections open on the application');
   ok(await page.evaluate(() => [...document.querySelector('[name=academicYear]').options].filter(o => o.value).map(o => o.value).join()) === '2026-2027,2027-2028', 'both open years offered');
   ok(await page.inputValue('#application-demo [name=academicYear]') === '', 'no year picked for them when two are open');
   let s = await admin(); ok(s.sheets.HOUSEHOLDS[1][0] === 'HH-0001' && s.sheets.HOUSEHOLDS[1][6] === 'Other: Godmother', 'household row saved: ' + s.sheets.HOUSEHOLDS[1].slice(0, 7));
@@ -78,6 +94,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   // Step through the wizard
   for (let i = 0; i < 4; i++) {
     if (i === 1) await page.setInputFiles('#application-demo input[type=file][name=gradeReport]', D + '/card.pdf');
+    if (i === 3) await (await page.$('.second-guardian')).screenshot({path: `${process.env.SHOTS || D}/03b-app-g2.png`});
     await page.click('#wizard-next'); await page.waitForTimeout(150);
   }
   ok((await page.textContent('#wizard-count')).includes('Review'), 'reached review: ' + await page.textContent('#wizard-count'));
@@ -95,6 +112,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   const H = apps[0], row = apps[1], col = h => row[H.indexOf(h)];
   ok(col('Program Year') === '2027-2028' && col('Guardian Relationship') === 'Other: Godmother' && col('Household ID') === 'HH-0001' && /^S-/.test(col('Student Key')), 'application columns: ' + [col('Program Year'), col('Guardian Relationship'), col('Household Income Range')]);
   ok(String(col('Academic Record')).includes('drive'), 'upload saved: ' + col('Academic Record'));
+  ok(col('Second Guardian') === 'Yes' && col('Guardian 2 First Name') === 'Morgan' && col('Guardian 2 Different Address') === 'Yes' && col('Guardian 2 City') === 'Zachary', 'second guardian on the application row');
   ok(s.mails.some(m => /received Jordan/.test(m.subject)), 'received email sent');
   await shot('04-portal-received');
 
@@ -106,6 +124,9 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   s = await admin({op: 'process'});
   ok(s.mails.some(m => /decision is ready/i.test(m.subject)), 'decision email sent');
   await page.reload(); await page.waitForTimeout(1500);
+  const M = s.sheets.MASTER, mcol = h => M[1][M[0].indexOf(h)];
+  ok(mcol('Guardian 2 Name') === 'Morgan Sample' && /Zachary/.test(mcol('Guardian 2 Address')), 'MASTER second guardian: ' + mcol('Guardian 2 Name') + ' / ' + mcol('Guardian 2 Address'));
+  ok((await page.textContent('#household-summary')).includes('Morgan Sample (Father)'), 'summary shows second guardian');
   const list = await page.textContent('#student-list');
   ok(list.includes('Congratulations! Jordan has been admitted'), 'admitted message');
   ok(list.includes('Opens soon') && list.includes('Start'), 'tasks: closed ones say opens soon, income has start');

@@ -222,8 +222,32 @@ function renderPortal() {
 const HOUSEHOLD_INPUTS = {
   'Account Holder': 'hhAccountHolder', 'Guardian First Name': 'hhGuardianFirst', 'Guardian Last Name': 'hhGuardianLast',
   'Guardian Relationship': 'hhRelationship', 'Guardian Phone': 'hhPhone', 'Guardian Email': 'hhEmail',
-  'Street Address': 'hhStreet', 'Apartment or Unit': 'hhUnit', 'City': 'hhCity', 'State': 'hhState', 'ZIP Code': 'hhZip', 'Parish or County': 'hhParish'
+  'Street Address': 'hhStreet', 'Apartment or Unit': 'hhUnit', 'City': 'hhCity', 'State': 'hhState', 'ZIP Code': 'hhZip', 'Parish or County': 'hhParish',
+  'Guardian 2 First Name': 'hhG2First', 'Guardian 2 Last Name': 'hhG2Last', 'Guardian 2 Relationship': 'hhG2Relationship',
+  'Guardian 2 Phone': 'hhG2Phone', 'Guardian 2 Email': 'hhG2Email', 'Guardian 2 Different Address': 'hhG2Different',
+  'Guardian 2 Street Address': 'hhG2Street', 'Guardian 2 Apartment or Unit': 'hhG2Unit', 'Guardian 2 City': 'hhG2City',
+  'Guardian 2 State': 'hhG2State', 'Guardian 2 ZIP Code': 'hhG2Zip'
 };
+const hasSecondGuardian = hh => String(hh?.['Second Guardian'] || '').toLowerCase() === 'yes';
+
+// Show the checked answer's follow-up questions after filling a form from saved data.
+function syncReveals(root) {
+  root.querySelectorAll('input[type="radio"][data-reveal]').forEach(r => {
+    const t = $(r.dataset.reveal); if (t) t.hidden = root.elements.namedItem(r.name).value !== 'yes';
+  });
+}
+
+// The household card's second guardian opens with a button and closes with Remove.
+function showSecondGuardian(on) {
+  const form = $('#household-form');
+  $('#hh-g2').hidden = !on; $('#hh-add-g2').hidden = on;
+  form.elements.hhSecondGuardian.value = on ? 'Yes' : '';
+  if (!on) {
+    $('#hh-g2').querySelectorAll('input,select').forEach(el => { if (el.type === 'radio') el.checked = false; else el.value = ''; });
+    $('#hh-g2').querySelectorAll('select[data-other]').forEach(s => s.dispatchEvent(new Event('change')));
+  }
+  syncReveals(form);
+}
 
 let editingHousehold = false;
 function renderHousehold(hh) {
@@ -246,14 +270,36 @@ function renderHousehold(hh) {
     ['Phone', hh['Guardian Phone']], ['Email', hh['Guardian Email']],
     ['Home address', [address, place].filter(Boolean).join(', ')], ['Parish or county', hh['Parish or County']]
   ];
-  summary.replaceChildren(...rows.filter(r => r[1]).flatMap(([k, v]) => [el('dt', {text: k}), el('dd', {text: String(v)})]));
+  if (hasSecondGuardian(hh)) {
+    const rel = String(hh['Guardian 2 Relationship'] || '').replace(/^Other:\s*/, '');
+    const diff = String(hh['Guardian 2 Different Address'] || '').toLowerCase() === 'yes';
+    const g2Street = [hh['Guardian 2 Street Address'], hh['Guardian 2 Apartment or Unit']].filter(Boolean).join(', ');
+    const g2Place = [hh['Guardian 2 City'], [hh['Guardian 2 State'], hh['Guardian 2 ZIP Code']].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    rows.push(['Second parent or guardian', `${hh['Guardian 2 First Name'] || ''} ${hh['Guardian 2 Last Name'] || ''}`.trim() + (rel ? ` (${rel})` : '')],
+      ['Phone', hh['Guardian 2 Phone']], ['Email', hh['Guardian 2 Email']],
+      ['Address', diff ? [g2Street, g2Place].filter(Boolean).join(', ') : 'Same as home address']);
+  }
+  summary.replaceChildren(...rows.filter(r => r[1]).flatMap(([k, v]) => [el('dt', {class: k === 'Second parent or guardian' ? 'g2-start' : false, text: k}), el('dd', {text: String(v)})]));
+  let add = $('#hh-summary-add-g2');
+  if (!add) {
+    add = el('button', {class: 'btn btn-secondary add-g2', id: 'hh-summary-add-g2', type: 'button', text: '+ Add second guardian', onclick: () => {
+      editingHousehold = true; fillHouseholdForm(state.household); showSecondGuardian(true); renderHousehold(state.household);
+      $('#household-form [name="hhG2First"]').focus();
+    }});
+    summary.after(add);
+  }
+  add.hidden = editing || hasSecondGuardian(hh);
 }
 
 // Set a form control by name, handling radios, "Other: ..." selects, and plain inputs.
 function setField(form, name, value) {
   const field = form.elements.namedItem(name); if (!field) return;
   value = value == null ? '' : String(value);
-  if (field instanceof RadioNodeList) { [...field].forEach(r => { r.checked = r.value === value; }); return; }
+  if (field instanceof RadioNodeList) {
+    const want = value.toLowerCase();
+    [...field].forEach(r => { r.checked = !!want && (r.value.toLowerCase() === want || (r.dataset.label || '').toLowerCase() === want); });
+    return;
+  }
   if (field.tagName === 'SELECT') {
     const options = [...field.options];
     const match = options.find(o => o.value === value) || options.find(o => o.text === value);
@@ -274,11 +320,16 @@ function fillHouseholdForm(hh) {
   const form = $('#household-form'); form.reset();
   form.querySelectorAll('select[data-other]').forEach(s => s.dispatchEvent(new Event('change')));
   Object.entries(HOUSEHOLD_INPUTS).forEach(([col, name]) => setField(form, name, hh?.[col]));
+  $('#hh-g2').hidden = !hasSecondGuardian(hh); $('#hh-add-g2').hidden = hasSecondGuardian(hh);
+  form.elements.hhSecondGuardian.value = hasSecondGuardian(hh) ? 'Yes' : '';
+  syncReveals(form);
 }
 
 function initHousehold() {
   const form = $('#household-form'), msg = $('#household-message');
   $('#edit-household').addEventListener('click', () => { editingHousehold = true; fillHouseholdForm(state.household); renderHousehold(state.household); form.querySelector('input:not([type="radio"])').focus(); });
+  $('#hh-add-g2').addEventListener('click', () => { showSecondGuardian(true); form.elements.hhG2First.focus(); });
+  $('#hh-remove-g2').addEventListener('click', () => { showSecondGuardian(false); $('#hh-add-g2').focus(); });
   form.querySelector('[data-cancel-household]').addEventListener('click', () => { editingHousehold = false; msg.textContent = ''; renderHousehold(state.household); });
   form.addEventListener('submit', async e => {
     e.preventDefault(); const b = form.querySelector('[type="submit"]');
@@ -286,6 +337,8 @@ function initHousehold() {
     const zip = form.elements.hhZip;
     if (first) { msg.textContent = 'Please fix the highlighted questions.'; first.focus(); return; }
     if (!/^\d{5}(?:-\d{4})?$/.test(zip.value.trim())) { msg.textContent = 'Please enter a valid ZIP code.'; zip.focus(); return; }
+    const zip2 = form.elements.hhG2Zip;
+    if (!zip2.closest('[hidden]') && !/^\d{5}(?:-\d{4})?$/.test(zip2.value.trim())) { msg.textContent = 'Please enter a valid ZIP code for the second guardian.'; zip2.focus(); return; }
     const isNew = !state?.household;
     busy(b, true, 'Saving…'); msg.textContent = '';
     try {
@@ -381,13 +434,17 @@ async function refreshVerified() {
 const APP_FROM_HOUSEHOLD = {
   guardianFirst: 'Guardian First Name', guardianLast: 'Guardian Last Name', guardianRelationship: 'Guardian Relationship',
   guardianPhone: 'Guardian Phone', guardianEmail: 'Guardian Email', homeStreet: 'Street Address', homeUnit: 'Apartment or Unit',
-  homeCity: 'City', homeState: 'State', homeZip: 'ZIP Code', homeParish: 'Parish or County'
+  homeCity: 'City', homeState: 'State', homeZip: 'ZIP Code', homeParish: 'Parish or County',
+  secondGuardian: 'Second Guardian', g2First: 'Guardian 2 First Name', g2Last: 'Guardian 2 Last Name', g2Relationship: 'Guardian 2 Relationship',
+  g2Phone: 'Guardian 2 Phone', g2Email: 'Guardian 2 Email', g2Different: 'Guardian 2 Different Address', g2Street: 'Guardian 2 Street Address',
+  g2Unit: 'Guardian 2 Apartment or Unit', g2City: 'Guardian 2 City', g2State: 'Guardian 2 State', g2Zip: 'Guardian 2 ZIP Code'
 };
 
 function loadNew() {
   current = 'new'; appApi().reset();
   const form = appApi().form, hh = state?.household || {};
   Object.entries(APP_FROM_HOUSEHOLD).forEach(([name, col]) => { if (hh[col]) setField(form, name, hh[col]); });
+  syncReveals(form);
   if (hh['Account Holder'] === 'Student' && user) setField(form, 'studentEmail', user.email);
   setDraftHead('New application', '');
 }
@@ -396,6 +453,7 @@ function loadDraft(s) {
   current = s.studentKey; appApi().restore(s.answers || {});
   const form = appApi().form, hh = state?.household || {};
   Object.entries(APP_FROM_HOUSEHOLD).forEach(([name, col]) => { if (hh[col] && !form.elements.namedItem(name)?.value) setField(form, name, hh[col]); });
+  syncReveals(form);
   setDraftHead('For ' + studentName(s), s.updated ? 'Saved' : '');
 }
 

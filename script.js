@@ -8,7 +8,9 @@ function view(name,fromHistory){if(window.BRYCGuard)name=window.BRYCGuard(name)|
  if(fromHistory)history.replaceState(null,'',url);else if(location.hash!==(name==='home'?'':'#'+name)){history.pushState(null,'',url);movedInSite=true;}
  document.dispatchEvent(new CustomEvent('bryc:view',{detail:{name}}));}
 window.BRYCView=view;
-document.addEventListener('click',e=>{const n=e.target.closest('[data-view]');if(!n||n.hasAttribute('data-scroll'))return;e.preventDefault();view(n.dataset.view);});$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
+document.addEventListener('click',e=>{const n=e.target.closest('[data-view]');if(!n||n.hasAttribute('data-scroll'))return;e.preventDefault();view(n.dataset.view);});// Once someone changes an answer, its error message goes away.
+['input','change'].forEach(type=>document.addEventListener(type,e=>{const el=e.target;if(!el.matches?.('input,select,textarea'))return;const box=el.closest('.role-choice[aria-invalid]');const target=box||(el.getAttribute('aria-invalid')?el:el.closest('label[aria-invalid]'));if(!target)return;target.removeAttribute('aria-invalid');if(target.nextElementSibling?.classList.contains('field-error'))target.nextElementSibling.remove();}));
+$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 // Open the page named in the link, so links like #refer or #apply can be shared.
 const openFromHash=()=>{const name=location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
 openFromHash();window.addEventListener('popstate',openFromHash);window.addEventListener('hashchange',openFromHash);
@@ -182,6 +184,7 @@ function validateStep(i){clearErrors();const panel=steps[i];if(!panel)return tru
   if(el.required&&!el.value.trim())fail(el,'Please complete '+labelFor(el).toLowerCase()+'.');
   else if(el.value&&el.validity.typeMismatch)fail(el,'Please enter a valid email address.');
  });
+ panel.querySelectorAll('[data-required-radio]').forEach(g=>{if(g.closest('[hidden]'))return;if(!app.elements.namedItem(g.dataset.requiredRadio).value)fail(g.querySelector('.role-choice')||g,'Please choose one.');});
  if(i===0){
   if(!year.value){} else if(!['2026-2027','2027-2028'].includes(year.value))fail(year,'Please select an academic year.');
   const target=year.value==='2027-2028'?futureGrade:currentGrade;
@@ -195,7 +198,7 @@ function validateStep(i){clearErrors();const panel=steps[i];if(!panel)return tru
   const report=panel.querySelector('[name="actReport"]');if(taken?.value==='Yes'&&report&&!report.files.length)fail(report,'Please select your ACT score report, if available; otherwise update your ACT status.');
  }
  if(i===2){const radios=[...panel.querySelectorAll('[name="studentCertification"]')];const checked=radios.find(r=>r.checked);if(!checked)fail(radios[0],'Please select your certification response.');else if(checked.value.toLowerCase()!=='yes')fail(checked,'You must agree to the certification to continue.');}
- if(i===3){const a=panel.querySelector('[name="policyAck"]');if(a&&!a.checked)fail(a,'Please acknowledge BRYC policies.');const zip=panel.querySelector('[name="homeZip"]');if(zip?.value&&!/^\d{5}(?:-\d{4})?$/.test(zip.value.trim()))fail(zip,'Please enter a valid ZIP code.');}
+ if(i===3){const a=panel.querySelector('[name="policyAck"]');if(a&&!a.checked)fail(a,'Please acknowledge BRYC policies.');['homeZip','g2Zip'].forEach(n=>{const zip=panel.querySelector('[name="'+n+'"]');if(zip?.value&&!zip.closest('[hidden]')&&!/^\d{5}(?:-\d{4})?$/.test(zip.value.trim()))fail(zip,'Please enter a valid ZIP code.');});}
  if(first){$('#wizard-notice').textContent='Please correct the highlighted questions before continuing.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return false}return true;
 }
 function review(){const target=$('#application-review');target.replaceChildren();const vals=new FormData(app);const added=new Set();for(const [k,v] of vals.entries()){
@@ -222,7 +225,9 @@ function serialize(){const out={};
   if(el.type==='radio'){if(el.checked)out[el.name]=el.value;return;}
   if(el.value)out[el.name]=el.value;});
  return out;}
-function resetApp(){app.reset();app.querySelectorAll('[data-school-control]').forEach(w=>setSchool(w,''));updateYear();syncRelative();
+// Yes/no questions with data-reveal show or hide their follow-up questions.
+function syncReveals(){app.querySelectorAll('input[type="radio"][data-reveal]').forEach(r=>{const t=$(r.dataset.reveal);if(t)t.hidden=app.elements.namedItem(r.name).value!=='yes';});}
+function resetApp(){app.reset();syncReveals();app.querySelectorAll('[data-school-control]').forEach(w=>setSchool(w,''));updateYear();syncRelative();
  app.querySelectorAll('select[data-other]').forEach(el=>el.dispatchEvent(new Event('change')));
  if(year.options.length===2){year.selectedIndex=1;updateYear();}
  step=0;showStep();clearErrors();}
@@ -234,7 +239,7 @@ function restore(a){resetApp();a=a||{};
   if(el.type==='checkbox')el.checked=Array.isArray(v)&&v.includes(el.value);
   else if(el.type==='radio')el.checked=el.value===v;
   else el.value=v;});
- syncRelative();app.querySelectorAll('select[data-other],select[name="actTaken"]').forEach(el=>el.dispatchEvent(new Event('change')));
+ syncRelative();syncReveals();app.querySelectorAll('select[data-other],select[name="actTaken"]').forEach(el=>el.dispatchEvent(new Event('change')));
  step=0;showStep();clearErrors();}
 window.BRYCApp={form:app,serialize,restore,reset:resetApp};
 document.dispatchEvent(new CustomEvent('bryc:app-ready'));

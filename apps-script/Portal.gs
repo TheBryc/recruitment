@@ -44,6 +44,12 @@ const PORTAL = {
     EMAIL_LOG: ['Sent At', 'Type', 'To', 'Subject', 'BRYC ID', 'Household ID', 'Result']
   },
 
+  // Optional second parent or guardian, on the household and the application.
+  secondGuardianFields: ['Second Guardian', 'Guardian 2 First Name', 'Guardian 2 Last Name', 'Guardian 2 Relationship', 'Guardian 2 Phone',
+    'Guardian 2 Email', 'Guardian 2 Different Address', 'Guardian 2 Street Address', 'Guardian 2 Apartment or Unit',
+    'Guardian 2 City', 'Guardian 2 State', 'Guardian 2 ZIP Code'],
+  secondGuardianAddress: ['Guardian 2 Street Address', 'Guardian 2 Apartment or Unit', 'Guardian 2 City', 'Guardian 2 State', 'Guardian 2 ZIP Code'],
+
   householdFields: ['Account Holder', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone',
     'Guardian Email', 'Street Address', 'Apartment or Unit', 'City', 'State', 'ZIP Code', 'Parish or County'],
   householdRequired: ['Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email',
@@ -112,9 +118,10 @@ function portalLoad(ss, user) {
 
 function portalSaveHousehold(ss, user, payload) {
 
-  const fields = cleanPortalFields(payload.fields, PORTAL.householdFields);
+  const fields = cleanPortalFields(payload.fields, PORTAL.householdFields.concat(PORTAL.secondGuardianFields));
   const missing = PORTAL.householdRequired.filter(h => isBlank(fields[h]));
   if (missing.length) throw new PortalError('Please complete: ' + missing.join(', '));
+  clearSecondGuardian(fields);
 
   withLock(() => {
     const sheet = portalSheet(ss, PORTAL.householdsSheet);
@@ -578,6 +585,20 @@ function writeRow(sheet, row, fields) {
     const column = map[normalizeHeader(header)];
     if (column) sheet.getRange(row, column).setValue(value);
   });
+}
+
+
+// Blank answers are dropped before saving, so a removed second guardian (or a
+// second address they no longer need) is cleared here on purpose.
+function clearSecondGuardian(fields) {
+
+  const has = normalizeText(fields['Second Guardian']) === 'yes';
+  fields['Second Guardian'] = has ? 'Yes' : 'No';
+  const clear = has ? (normalizeText(fields['Guardian 2 Different Address']) === 'yes' ? [] : PORTAL.secondGuardianAddress)
+    : PORTAL.secondGuardianFields.filter(h => h !== 'Second Guardian');
+  clear.forEach(h => { fields[h] = ''; });
+  if (has && !clear.length) fields['Guardian 2 Different Address'] = 'Yes';
+  else if (has) fields['Guardian 2 Different Address'] = 'No';
 }
 
 
