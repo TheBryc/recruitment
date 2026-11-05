@@ -478,3 +478,7 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .household-summary dt.g2-start{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
 #hh-summary-add-g2{margin-top:18px}
 .second-guardian h3{margin-top:8px}
+/* Header sign out: outline pill beside My portal, only while signed in. */
+.navlink.nav-signout{margin-left:8px;border:1px solid var(--field);border-radius:999px;padding:9px 18px;background:#fff;color:var(--ink);box-shadow:none}
+.navlink.nav-signout:hover{border-color:var(--pink);color:var(--pink-text);background:var(--pink-soft)}
+@media(max-width:900px){.navlink.nav-signout{margin:8px 0 0;text-align:center}}

@@ -178,6 +178,15 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   // Mobile screenshot
   await page.setViewportSize({width: 390, height: 844}); await page.waitForTimeout(300); await shot('07-portal-mobile');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no horizontal scroll on mobile');
+
+  // Header sign out, without opening the portal
+  await page.setViewportSize({width: 1280, height: 900}); await page.evaluate(() => BRYCView('home'));
+  ok(await page.isVisible('#nav-signout'), 'header sign out shown while signed in');
+  await page.screenshot({path: `${process.env.SHOTS || D}/08-header-signed-in.png`, clip: {x: 0, y: 0, width: 1280, height: 80}});
+  await page.click('#nav-signout'); await page.waitForTimeout(400);
+  ok(await active() === 'home' && !(await page.isVisible('#nav-signout')) && (await page.textContent('#nav-portal')) === 'Sign in', 'header sign out signs out and hides itself');
+  await page.reload(); await page.waitForTimeout(800);
+  ok(!(await page.isVisible('#nav-signout')), 'still signed out after reload');
   // Ignore noise from the test stand-ins (blocked fonts, the stub Firestore module, the optional hero photo).
   const real = errors.filter(e => !/ERR_FAILED|404|firebase-firestore/.test(e));
   ok(!real.length, 'no page errors: ' + real.join(' | '));
