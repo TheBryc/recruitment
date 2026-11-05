@@ -8,9 +8,9 @@ import vm from 'node:vm';
 const HEADERS = {
   REFERRALS_RAW: ['Timestamp', 'Referrer First Name', 'Referrer Last Name', 'Referrer Email', 'Referrer Phone', 'Which best describes you?', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'School', 'School Not Listed', 'Current Grade', 'Student Cell Phone', 'Student Email', 'Anything Else We Should Know', 'Has Guardian Contact', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'BRYC ID'],
   INQUIRIES_RAW: ['Timestamp', 'Submitted By', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'School', 'School Not Listed', 'Current Grade', 'Student Phone', 'Student Email', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'How did you first hear about BRYC?', 'BRYC ID'],
-  APPLICATIONS_RAW: ['Timestamp', 'Program Year', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'Student Email', 'Student Phone', 'Current Grade', 'Grade in Program Year', 'School', 'School Not Listed', 'BRYC Relative', 'Relative Names', 'Academic Record', 'ACT Taken', 'ACT Report', 'Self-Reported Grades', 'Short Response #1', 'Short Response #2', 'Short Response #3', 'Activities Outside Class', 'How did you first hear about BRYC?', 'Student Certification', 'Student Signature', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Email', 'Guardian Phone', 'Street Address', 'Apartment or Unit', 'City', 'State', 'ZIP Code', 'Parish or County', 'Household Members', 'Home Language', 'Need Circumstances', 'Policy Acknowledgment', 'Guardian Signature', 'BRYC ID'],
+  APPLICATIONS_RAW: ['Timestamp', 'Program Year', 'Student First Name', 'Student Last Name', 'Student Gender Identity', 'Student Email', 'Student Phone', 'Current Grade', 'Grade in Program Year', 'School', 'School Not Listed', 'BRYC Relative', 'Relative Names', 'Academic Record', 'ACT Taken', 'ACT Report', 'Self-Reported Grades', 'Short Response #1', 'Short Response #2', 'Short Response #3', 'Activities Outside Class', 'How did you first hear about BRYC?', 'Student Certification', 'Student Signature', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Email', 'Guardian Phone', 'Street Address', 'Apartment or Unit', 'City', 'State', 'ZIP Code', 'Parish or County', 'Household Members', 'Home Language', 'Need Circumstances', 'Policy Acknowledgment', 'Guardian Signature', 'BRYC ID', 'Household Income Range'],
   ID_REGISTRY: ['BRYC ID', 'First Name', 'Last Name', 'Student Email', 'Student Phone', 'Guardian Email', 'Guardian Phone', 'School', 'First Entry Source', 'Date Created'],
-  MASTER: ['BRYC ID', 'Fellow First Name', 'Fellow Last Name', 'Gender', 'Program Year', 'Grade', 'School', 'Student Email', 'Student Phone', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone Number', 'Guardian Email', 'Home Address', 'Home Language', 'Relative in BRYC', 'Recruitment Source', 'Referred By', 'Referral Date', 'Inquiry Date', 'Application Date', 'Application Status', 'Decision', 'Decision Date', 'Onboarding Status', 'Onboarding Date', 'Income Verification Required', 'Income Verification Status', 'Current RAM Status', 'Next Action', 'Last Activity', 'RAM Notes', 'Match Status', 'Application Link', 'Onboarding Link', 'Income Verification Link', 'Data Authority Rank']
+  MASTER: ['BRYC ID', 'Fellow First Name', 'Fellow Last Name', 'Gender', 'Program Year', 'Grade', 'School', 'Student Email', 'Student Phone', 'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone Number', 'Guardian Email', 'Home Address', 'Home Language', 'Relative in BRYC', 'Recruitment Source', 'Referred By', 'Referral Date', 'Inquiry Date', 'Application Date', 'Application Status', 'Decision', 'Decision Date', 'Onboarding Status', 'Onboarding Date', 'Income Verification Required', 'Income Verification Status', 'Current RAM Status', 'Next Action', 'Last Activity', 'RAM Notes', 'Match Status', 'Application Link', 'Onboarding Link', 'Income Verification Link', 'Data Authority Rank', 'Household Income Range']
 };
 
 // ---------- Minimal Apps Script stand-ins ----------
@@ -92,7 +92,8 @@ const application = { form: 'application', fields: {
   'School': 'Scotlandville Magnet High School', 'Guardian First Name': 'Casey', 'Guardian Last Name': 'Sample', 'Guardian Relationship': 'Aunt',
   'Guardian Phone': '2255550123', 'Guardian Email': 'casey@example.com', 'Student Signature': 'Jordan Sample', 'Guardian Signature': 'Casey Sample',
   'Street Address': '123 Main St', 'Apartment or Unit': 'Apt 2', 'City': 'Baton Rouge', 'State': 'LA', 'ZIP Code': '70802', 'Home Language': 'English',
-  'BRYC Relative': 'Yes', 'Relative Names': 'Avery Sample', 'How did you first hear about BRYC?': 'Student in BRYC' },
+  'BRYC Relative': 'Yes', 'Relative Names': 'Avery Sample', 'How did you first hear about BRYC?': 'Student in BRYC',
+  'Household Income Range': '$30,001–$48,000' },
   files: [{ column: 'Academic Record', name: 'report.pdf', mimeType: 'application/pdf', data: Buffer.from('pdf').toString('base64') }] };
 
 beforeEach(load);
@@ -125,6 +126,8 @@ test('inquiry then application match the same student and move them forward', ()
   assert.equal(master(2, 'Home Address'), '123 Main St Apt 2, Baton Rouge LA 70802');
   assert.equal(master(2, 'Relative in BRYC'), 'Yes: Avery Sample');
   assert.equal(master(2, 'Program Year'), '2027-2028');
+  assert.equal(master(2, 'Household Income Range'), '$30,001–$48,000');
+  assert.equal(raw('APPLICATIONS_RAW', 2, 'Household Income Range'), '$30,001–$48,000');
   assert.equal(master(2, 'Current RAM Status'), 'Applicant');
   assert.equal(master(2, 'Next Action'), 'Review Application');
   assert.match(master(2, 'Application Link'), /#gid=3&range=A2$/);
