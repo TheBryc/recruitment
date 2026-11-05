@@ -1,11 +1,17 @@
 
 (async()=>{
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-function view(name){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});history.replaceState(null,'',name==='home'?location.pathname:'#'+name);}
+// Each page change is a browser history entry, so the Back button works.
+// Pages opened from history (Back, Forward, a shared link) don't add a new entry.
+let movedInSite=false;
+function view(name,fromHistory){$$('.view').forEach(n=>n.classList.toggle('active',n.id===name));$$('[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===name));$('.topbar nav')?.classList.remove('show');window.scrollTo({top:0,behavior:'instant'});const url=name==='home'?location.pathname:'#'+name;
+ if(fromHistory)history.replaceState(null,'',url);else if(location.hash!==(name==='home'?'':'#'+name)){history.pushState(null,'',url);movedInSite=true;}}
 $$('[data-view]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();view(n.dataset.view)}));$('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 // Open the page named in the link, so links like #refer or #apply can be shared.
-const openFromHash=()=>{const name=location.hash.slice(1);if(name&&document.getElementById(name)?.classList.contains('view'))view(name);};
-openFromHash();window.addEventListener('hashchange',openFromHash);
+const openFromHash=()=>{const name=location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
+openFromHash();window.addEventListener('popstate',openFromHash);window.addEventListener('hashchange',openFromHash);
+// On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
+$$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and a parent or guardian so staff can match them.
 const inquiry=$('#inquiry-form');
 function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
