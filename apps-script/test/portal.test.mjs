@@ -229,3 +229,35 @@ test('emails that fail are logged and retried on the next run', () => {
   ctx.processPending();
   assert.equal(master(2, 'Family Notified'), 'status:Under review');
 });
+
+test('second guardian: saved on the household, cleared when removed, and copied to MASTER', () => {
+  const casey = as('uid-casey', 'casey@example.com');
+  const g2 = {'Second Guardian': 'Yes', 'Guardian 2 First Name': 'Morgan', 'Guardian 2 Last Name': 'Sample', 'Guardian 2 Relationship': 'Father',
+    'Guardian 2 Phone': '2255550456', 'Guardian 2 Different Address': 'Yes', 'Guardian 2 Street Address': '9 Oak St', 'Guardian 2 City': 'Zachary',
+    'Guardian 2 State': 'LA', 'Guardian 2 ZIP Code': '70791'};
+  let state = casey('saveHousehold', {fields: Object.assign({}, household, g2)}).state;
+  assert.equal(state.household['Guardian 2 First Name'], 'Morgan');
+  assert.equal(state.household['Guardian 2 City'], 'Zachary');
+
+  // Same address: the second address is cleared.
+  state = casey('saveHousehold', {fields: Object.assign({}, household, g2, {'Guardian 2 Different Address': 'No'})}).state;
+  assert.equal(state.household['Guardian 2 Street Address'], '');
+  assert.equal(state.household['Guardian 2 First Name'], 'Morgan');
+
+  // Removed: every second guardian field is cleared.
+  state = casey('saveHousehold', {fields: household}).state;
+  assert.equal(state.household['Second Guardian'], 'No');
+  assert.equal(state.household['Guardian 2 First Name'], '');
+  assert.equal(state.household['Guardian 2 Phone'], '');
+
+  // On the application, MASTER gets the second guardian's name, contact, and address.
+  const {studentKey} = casey('saveDraft', {answers: {studentFirst: 'Jordan'}, fields: {'Student First Name': 'Jordan'}});
+  const out = casey('submitApplication', {studentKey, fields: Object.assign({}, appFields, g2)});
+  assert.equal(out.ok, true, out.error);
+  assert.equal(raw('APPLICATIONS_RAW', 2, 'Guardian 2 Last Name'), 'Sample');
+  ctx.processPending();
+  const live = header => sheets.MASTER.cell(2, sheets.MASTER.rows[0].indexOf(header) + 1);
+  assert.equal(live('Guardian 2 Name'), 'Morgan Sample');
+  assert.equal(live('Guardian 2 Relationship'), 'Father');
+  assert.match(String(live('Guardian 2 Address')), /9 Oak St.*Zachary LA 70791/);
+});

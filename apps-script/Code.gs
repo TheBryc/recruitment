@@ -50,7 +50,8 @@ const CONFIG = {
     'Onboarding Status', 'Onboarding Date', 'Income Verification Required',
     'Income Verification Status', 'Current RAM Status', 'Next Action',
     'Last Activity', 'Match Status', 'RAM Notes', 'Data Authority Rank',
-    'Household ID', 'Decision Released', 'Family Notified', 'Income Request Sent'
+    'Household ID', 'Decision Released', 'Family Notified', 'Income Request Sent',
+    'Guardian 2 Name', 'Guardian 2 Relationship', 'Guardian 2 Phone', 'Guardian 2 Email', 'Guardian 2 Address'
   ],
 
   // Next Action values the script sets. Anything else in that column
@@ -706,6 +707,19 @@ function buildProfileUpdates(response, identity, formType) {
     profile['Home Language'] = cleanValue(pick(response, ['Home Language']));
     profile['Household Income Range'] = cleanValue(pick(response, ['Household Income Range']));
     profile['Household ID'] = cleanValue(pick(response, ['Household ID']));
+
+    if (normalizeText(pick(response, ['Second Guardian'])) === 'yes') {
+      profile['Guardian 2 Name'] = [pick(response, ['Guardian 2 First Name']), pick(response, ['Guardian 2 Last Name'])]
+        .map(cleanValue).filter(Boolean).join(' ');
+      profile['Guardian 2 Relationship'] = cleanValue(pick(response, ['Guardian 2 Relationship']));
+      profile['Guardian 2 Phone'] = cleanContact(pick(response, ['Guardian 2 Phone']));
+      profile['Guardian 2 Email'] = cleanContact(pick(response, ['Guardian 2 Email']));
+      profile['Guardian 2 Address'] = normalizeText(pick(response, ['Guardian 2 Different Address'])) === 'yes'
+        ? combineAddress(
+            [pick(response, ['Guardian 2 Street Address']), pick(response, ['Guardian 2 Apartment or Unit'])].map(cleanValue).filter(Boolean).join(' '),
+            cleanValue(pick(response, ['Guardian 2 City'])), cleanValue(pick(response, ['Guardian 2 State'])), cleanValue(pick(response, ['Guardian 2 ZIP Code'])))
+        : 'Same as student';
+    }
 
     const street = [pick(response, ['Street Address']), pick(response, ['Apartment or Unit'])]
       .map(cleanValue).filter(Boolean).join(' ');
