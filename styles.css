@@ -464,3 +464,9 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 @media(max-width:600px){.progress li{font-size:.7rem}.student-card,.student-empty{padding:20px}.task-list li{flex-direction:column;align-items:stretch}.household-form .form-grid{grid-template-columns:1fr}.portal-section-head{flex-wrap:wrap}.portal-section-head .btn{width:100%}}
 .account-steps li span{display:block}.account-help{margin:18px 0 0;color:var(--ink-2);font-size:.95rem}
 .portal-head{margin-bottom:14px}@media(max-width:600px){.portal-head .btn{width:auto;flex:none;min-height:42px;padding:8px 18px}.portal-head{margin-bottom:22px}}
+/* Back: same pill shape as the header button, as an outline so it stays secondary. */
+.back-link{padding:10px 20px 10px 16px;border:1px solid var(--field);border-radius:999px;background:#fff;color:var(--ink);font-weight:600;font-size:.95rem;line-height:1.2;transition:border-color .15s,color .15s,background .15s}
+.back-link:hover{border-color:var(--pink);color:var(--pink-text);background:var(--pink-soft)}
+.back-link{margin:0 0 28px}@media(max-width:600px){.back-link{margin:0 0 20px}}
+/* Links like #apply open at the top of the page, not tucked under the sticky header. */
+.view{scroll-margin-top:200px}
