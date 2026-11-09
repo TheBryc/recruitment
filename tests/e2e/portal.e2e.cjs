@@ -24,7 +24,6 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   // Signup validation
   await page.click('#signup-form button[type=submit]');
   ok((await page.textContent('#account-message')).includes('highlighted'), 'signup validation');
-  await page.check('#signup-form input[value="Parent or guardian"]');
   await page.fill('#signup-form [name=email]', 'casey@example.com');
   await page.fill('#signup-form [name=password]', 'password1');
   await page.fill('#signup-form [name=confirm]', 'password2');
@@ -36,7 +35,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(await active() === 'portal', 'after signup: portal');
   ok(await page.isVisible('#portal-verify'), 'verify banner visible');
   ok(await page.isVisible('#household-form'), 'household form shown first');
-  ok(await page.isChecked('#household-form input[value="Parent or guardian"]'), 'account holder prefilled');
+  ok(await page.inputValue('#household-form [name=hhAccountHolder]') === 'Parent or guardian', 'account holder is the parent or guardian');
+  ok(!(await page.$('#signup-form [name=accountHolder]')), 'sign-up no longer asks student or parent');
   ok(await page.inputValue('[name=hhEmail]') === 'casey@example.com', 'guardian email prefilled');
   ok((await page.textContent('#portal-flash')).includes('household'), 'flash asks for household');
   await shot('02-portal-new');
@@ -187,6 +187,30 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(await active() === 'home' && !(await page.isVisible('#nav-signout')) && (await page.textContent('#nav-portal')) === 'Sign in', 'header sign out signs out and hides itself');
   await page.reload(); await page.waitForTimeout(800);
   ok(!(await page.isVisible('#nav-signout')), 'still signed out after reload');
+  // Get more info: its own page, no account, guardian details optional.
+  await page.goto(BASE); await page.waitForTimeout(800);
+  ok(!(await page.$('#home #inquiry-form')), 'the interest form is no longer on the home page');
+  await page.click('.hero-wrap [data-view=inquire]');
+  ok(await active() === 'inquire', 'hero "Get more info" opens the interest page');
+  ok(!(await page.$('#inquiry-form [name=submitterRole]')), 'no "I am a student / parent" question');
+  await page.fill('#inquiry-form [name=studentFirst]', 'Riley'); await page.fill('#inquiry-form [name=studentLast]', 'Young');
+  await page.fill('#inquiry-form .school-search', 'Thrive'); await page.click('#inquiry-form .school-suggestions li:first-child');
+  await page.selectOption('#inquiry-form [name=studentGrade]', '7th'); await page.selectOption('#inquiry-form [name=heardAbout]', 'visit');
+  await page.click('#inquiry-form button[type=submit]');
+  ok((await page.textContent('#inquiry-form')).includes('Add at least one phone number or email'), 'needs one phone or email');
+  await page.fill('#inquiry-form [name=guardianEmail]', 'young.family@example.com');
+  ok(!(await page.textContent('#inquiry-form')).includes('Add at least one phone number or email'), 'contact error clears once filled in');
+  await page.screenshot({path: `${process.env.SHOTS || D}/00-get-more-info.png`, fullPage: true});
+  await page.click('#inquiry-form button[type=submit]'); await page.waitForTimeout(800);
+  const done = await page.textContent('#inquire .form-done');
+  ok(done.includes('look for information about BRYC') && done.includes('Start an application'), 'thank-you mentions the email and offers to apply');
+  let inq = await admin({op: 'process'});
+  const IQ = inq.sheets.INQUIRIES_RAW, iq = h => IQ[1][IQ[0].indexOf(h)];
+  ok(IQ.length === 2 && iq('Student First Name') === 'Riley' && iq('Guardian Email') === 'young.family@example.com' && !iq('Guardian Phone'), 'interest row saved without guardian phone');
+  ok(inq.mails.some(m => m.subject === 'Thanks for your interest in BRYC' && m.to === 'young.family@example.com'), 'thank-you email sent to the family');
+  await page.goto(BASE + '#connect'); await page.waitForTimeout(600);
+  ok(await active() === 'inquire', 'old #connect links open the interest page');
+
   // Ignore noise from the test stand-ins (blocked fonts, the stub Firestore module, the optional hero photo).
   const real = errors.filter(e => !/ERR_FAILED|404|firebase-firestore/.test(e));
   ok(!real.length, 'no page errors: ' + real.join(' | '));

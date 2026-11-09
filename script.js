@@ -12,7 +12,8 @@ document.addEventListener('click',e=>{const n=e.target.closest('[data-view]');if
 ['input','change'].forEach(type=>document.addEventListener(type,e=>{const el=e.target;if(!el.matches?.('input,select,textarea'))return;const box=el.closest('.role-choice[aria-invalid]');const target=box||(el.getAttribute('aria-invalid')?el:el.closest('label[aria-invalid]'));if(!target)return;target.removeAttribute('aria-invalid');if(target.nextElementSibling?.classList.contains('field-error'))target.nextElementSibling.remove();}));
 $('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.toggle('show'));
 // Open the page named in the link, so links like #refer or #apply can be shared.
-const openFromHash=()=>{const name=location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
+// Old links to the home page's form (#connect) open the Get more info page.
+const openFromHash=()=>{const name=({connect:'inquire'})[location.hash.slice(1)]||location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
 openFromHash();window.addEventListener('popstate',openFromHash);window.addEventListener('hashchange',openFromHash);
 // Home video: a silent loop behind the headline. People who turn off motion or
 // save data see the still frame instead and can press play. It pauses when it
@@ -27,14 +28,12 @@ openFromHash();window.addEventListener('popstate',openFromHash);window.addEventL
  b.hidden=false;label();sync();})();
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
-// Interest form: one submission captures the student and a parent or guardian so staff can match them.
+// Interest form: one submission captures the student and, when they know it, a parent or guardian.
 const inquiry=$('#inquiry-form');
-function changeRole(){const guardian=$('input[name="submitterRole"]:checked')?.value==='guardian';
- inquiry.querySelector('.household').classList.toggle('guardian-first',guardian);
- inquiry.querySelector('[data-student-title]').textContent=guardian?'Your student':'Your information';
- inquiry.querySelector('[data-guardian-title]').textContent=guardian?'Your information':'Your parent or guardian';
- inquiry.querySelector('[data-relationship-label]').textContent=guardian?'Your relationship to the student':'Relationship to you';}
-$$('input[name="submitterRole"]').forEach(n=>n.addEventListener('change',changeRole));
+const CONTACTS=['studentPhone','studentEmail','guardianPhone','guardianEmail'];
+// The "add a phone or email" message sits under the student phone, but any of the four answers it.
+inquiry?.addEventListener('input',e=>{if(!CONTACTS.includes(e.target.name))return;const sp=inquiry.elements.namedItem('studentPhone');
+ if(sp.getAttribute('aria-invalid')&&sp.nextElementSibling?.classList.contains('field-error')){sp.removeAttribute('aria-invalid');sp.nextElementSibling.remove();}});
 // A select with data-other shows a describe box when its "other" option is picked.
 $$('select[data-other]').forEach(sel=>{const box=$(sel.dataset.other),input=box.querySelector('input'),trigger=sel.dataset.otherValue||'Other';
  const sync=()=>{const on=sel.value===trigger;box.hidden=!on;input.required=on;if(!on)input.value='';};sel.addEventListener('change',sync);sync();});
@@ -96,7 +95,8 @@ async function sendForm(type,form,msg,button,thanks,optimistic,again){
  if(!SUBMIT_URL){msg.textContent='Preview only. Nothing was submitted or saved.';return false;}
  button.disabled=true;let done=null;
  const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');const p=document.createElement('p');p.textContent=thanks;done.append(p);
-  if(again){const ask=document.createElement('p');ask.className='form-done-ask';ask.textContent=again.prompt;const b=document.createElement('button');b.type='button';b.className='btn btn-secondary';b.textContent=again.label;b.addEventListener('click',()=>startAnother(form,done,msg,button));done.append(ask,b);}
+  if(again){const ask=document.createElement('p');ask.className='form-done-ask';ask.textContent=again.prompt;const b=document.createElement('button');b.type='button';b.className='btn btn-secondary';b.textContent=again.label;b.addEventListener('click',()=>startAnother(form,done,msg,button));done.append(ask,b);
+   if(again.apply){const p=document.createElement('p');p.className='form-done-ask';p.textContent='Ready to apply? A parent or guardian can create a family account and start the application.';const a=document.createElement('button');a.type='button';a.className='btn btn-primary';a.dataset.view='apply';a.textContent='Start an application';done.append(p,a);}}
   form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
  try{// Collect answers before hiding the form: hidden questions are skipped on purpose.
   const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
@@ -105,9 +105,12 @@ async function sendForm(type,form,msg,button,thanks,optimistic,again){
   if(!out.ok)throw new Error(out.error||'Something went wrong.');
   if(!optimistic)showDone();return true;}
  catch(err){if(done){done.remove();form.hidden=false;}msg.textContent=(err&&err.message)||'Something went wrong. Please try again.';button.disabled=false;msg.scrollIntoView({behavior:'smooth',block:'center'});return false;}}
-[[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon.',{prompt:'Is there another student in your family who might be interested?',label:'Add another student'}],
+[[inquiry,'inquiry','#inquiry-message','Thank you. Someone from our admissions team will reach out soon. If you shared an email address, look for information about BRYC in your inbox.',{prompt:'Is there another student in your family who might be interested?',label:'Add another student',apply:true}],
  [$('#referral-form'),'referral','#referral-message','Thank you for the referral. We will reach out to the student and their family.',{prompt:'Know another student who would be a good fit?',label:'Refer another student'}]]
- .forEach(([form,type,msgSel,thanks,again])=>form?.addEventListener('submit',e=>{e.preventDefault();const first=formErrors(form);const msg=$(msgSel);
+ .forEach(([form,type,msgSel,thanks,again])=>form?.addEventListener('submit',e=>{e.preventDefault();let first=formErrors(form);const msg=$(msgSel);
+ // The interest form needs one way to reach the family: any phone or email.
+ if(!first&&type==='inquiry'&&!CONTACTS.some(n=>form.elements.namedItem(n).value.trim())){
+  first=form.elements.namedItem('studentPhone');first.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent='Add at least one phone number or email for the student or a parent or guardian.';first.insertAdjacentElement('afterend',n);}
  if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
  sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks,true,again);}));
 $$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));
@@ -146,7 +149,6 @@ function initSchoolCombobox(wrapper){
  syncSchoolControl(wrapper);
 }
 $$('[data-school-control]').forEach(initSchoolCombobox);
-if(inquiry)changeRole();
 window.BRYCForms={collectAnswers,collectFiles,formErrors,syncSchoolControl,OTHER};
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');

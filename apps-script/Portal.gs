@@ -18,6 +18,7 @@ const PORTAL = {
   firebaseApiKey: 'AIzaSyCUCmN1yFAyfnooIPiJL5jSfo5A3ra8sNI',
 
   portalUrl: 'https://thebryc.github.io/recruitment/#portal',
+  applyUrl: 'https://thebryc.github.io/recruitment/#apply',
   senderName: 'BRYC Admissions',
   replyTo: 'admissions@thebryc.org',
   helpLine: 'If you have questions, reply to this email or call or text Mr. Forrest at (225) 283-1083.',
@@ -473,6 +474,36 @@ function familyRecipients(accountEmail, household, applicationGuardianEmail) {
 
 
 // Sends one plain, short email and logs it. Returns false if it could not send.
+// Sent once per interest form, when it's processed. The information sheet link
+// comes from the script property INFO_SHEET_URL (a Drive or website link), so it
+// can change without touching the code. Without it, the email points to the
+// application instead.
+function sendInquiryEmail(ss, response, brycId) {
+
+  try {
+    const student = cleanValue(pick(response, ['Student First Name']));
+    const guardian = cleanValue(pick(response, ['Guardian First Name']));
+    const to = familyRecipients(pick(response, ['Student Email']), null, pick(response, ['Guardian Email']));
+    const sheetUrl = cleanValue(PropertiesService.getScriptProperties().getProperty('INFO_SHEET_URL'));
+
+    const lines = [`Thank you for your interest in BRYC. We received ${student ? student + "'s" : 'your'} information, and someone from our admissions team will reach out soon.`];
+    if (sheetUrl) lines.push('Our information sheet has an overview of BRYC. You can open it with the button below.');
+    lines.push(`When you're ready to apply, a parent or guardian can create a family account at ${PORTAL.applyUrl}.`);
+
+    sendFamilyEmail(ss, 'Inquiry received', to, {
+      subject: 'Thanks for your interest in BRYC',
+      greeting: guardian || student,
+      lines: lines,
+      button: sheetUrl ? 'View the BRYC information sheet' : 'Start an application',
+      buttonUrl: sheetUrl || PORTAL.applyUrl,
+      brycId: brycId
+    });
+  } catch (err) {
+    console.error('Inquiry email failed: ' + err.message);
+  }
+}
+
+
 function sendFamilyEmail(ss, type, to, msg) {
 
   const log = portalSheet(ss, PORTAL.emailLogSheet);
@@ -487,10 +518,11 @@ function sendFamilyEmail(ss, type, to, msg) {
     if (MailApp.getRemainingDailyQuota() < to.length) throw new Error('Daily email limit reached');
 
     const hello = msg.greeting ? `Hi ${msg.greeting},` : 'Hello,';
-    const text = [hello, ''].concat(msg.lines.map(l => l + '\n'), [`${msg.button}: ${PORTAL.portalUrl}`, '', PORTAL.helpLine, '', 'BRYC Admissions']).join('\n');
+    const link = msg.buttonUrl || PORTAL.portalUrl;
+    const text = [hello, ''].concat(msg.lines.map(l => l + '\n'), [`${msg.button}: ${link}`, '', PORTAL.helpLine, '', 'BRYC Admissions']).join('\n');
     const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#161616;max-width:560px">`
       + `<p>${escapeHtml(hello)}</p>` + msg.lines.map(l => `<p>${escapeHtml(l)}</p>`).join('')
-      + `<p><a href="${PORTAL.portalUrl}" style="display:inline-block;background:#e11d48;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:bold">${escapeHtml(msg.button)}</a></p>`
+      + `<p><a href="${escapeHtml(link)}" style="display:inline-block;background:#e11d48;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:bold">${escapeHtml(msg.button)}</a></p>`
       + `<p style="color:#5d5f66">${escapeHtml(PORTAL.helpLine)}</p><p>BRYC Admissions</p></div>`;
 
     MailApp.sendEmail({ to: to.join(','), subject: msg.subject, body: text, htmlBody: html, name: PORTAL.senderName, replyTo: PORTAL.replyTo });

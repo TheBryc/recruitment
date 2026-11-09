@@ -69,14 +69,14 @@ export function createEnv() {
   const sheets = {}; let id = 1;
   for (const [name, headers] of Object.entries(HEADERS)) sheets[name] = new Sheet(name, id++, headers);
   sheets.LISTS = new Sheet('LISTS', id++); LISTS.forEach(r => sheets.LISTS.appendRow(r));
-  const savedFiles = [], mails = [], cache = new Map();
+  const savedFiles = [], mails = [], cache = new Map(), props = {};
   const ctx = {
     console: {error() {}, warn() {}, log() {}},
     SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
     ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => k === 'INCOME_FOLDER_ID' ? 'income-folder' : 'folder123' }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => ({INCOME_FOLDER_ID: 'income-folder', UPLOAD_FOLDER_ID: 'folder123', INFO_SHEET_URL: props.INFO_SHEET_URL})[k] ?? null }) },
     Utilities: {
       base64Decode: d => Buffer.from(d, 'base64'), newBlob: (bytes, type, name) => ({bytes, type, name}),
       DigestAlgorithm: {SHA_256: 'sha256'}, computeDigest: (alg, s) => [...createHash(alg).update(s).digest()],
@@ -94,5 +94,5 @@ export function createEnv() {
   };
   vm.createContext(ctx);
   for (const file of ['../Code.gs', '../Portal.gs']) vm.runInContext(readFileSync(new URL(file, import.meta.url), 'utf8'), ctx);
-  return {sheets, ctx, savedFiles, mails};
+  return {sheets, ctx, savedFiles, mails, props};
 }

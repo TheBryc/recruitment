@@ -81,6 +81,14 @@ Emails go to the account email, the household guardian email, and the guardian e
    Then run any function from the editor and approve every permission Google lists. Without `script.external_request`, every portal request fails with "Something went wrong on our end," and the execution log says *You do not have permission to call UrlFetchApp.fetch*.
 6. **Deploy a new version.** **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Google will ask you to approve two new permissions: sending email as you, and connecting to an external service (that's the sign-in check). The URL stays the same.
 
+## Get more info (interest form)
+
+The interest form has its own page (`#inquire`) and needs no account. Students or parents can fill it out. Only the student's name, school, grade, and how they heard about BRYC are required, plus at least one phone number or email for the student or a parent or guardian. Guardian details are optional because younger students often don't know them.
+
+When an interest form is processed (within 15 minutes), the family gets a "Thanks for your interest in BRYC" email at the student and guardian emails they gave. It's logged in EMAIL_LOG.
+
+**Information sheet:** in Apps Script, open **Project Settings → Script Properties** and add `INFO_SHEET_URL` with a link to the sheet. A Google Drive file shared as "Anyone with the link can view" works, and so does a page on thebryc.org. The email's button then opens the sheet. To change the sheet later, update the property; no code change or new deployment is needed. Without the property, the email points families to the application instead.
+
 ## Tests
 
 `test/code.test.mjs` and `test/portal.test.mjs` run the scripts against an in-memory copy of RAM HQ's headers:

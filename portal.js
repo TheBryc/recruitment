@@ -165,7 +165,6 @@ function initAccount() {
     if (!A) { fail(form, "The portal couldn't load. Please refresh the page and try again."); return; }
     busy(b, true, 'Creating your account…');
     try {
-      store('bryc-portal:holder', form.elements.accountHolder.value);
       const cred = await A.createUserWithEmailAndPassword(auth, form.elements.email.value.trim(), pw.value);
       await sendVerification(cred.user);
       form.reset();
@@ -220,7 +219,7 @@ function renderPortal() {
 }
 
 const HOUSEHOLD_INPUTS = {
-  'Account Holder': 'hhAccountHolder', 'Guardian First Name': 'hhGuardianFirst', 'Guardian Last Name': 'hhGuardianLast',
+  'Guardian First Name': 'hhGuardianFirst', 'Guardian Last Name': 'hhGuardianLast',
   'Guardian Relationship': 'hhRelationship', 'Guardian Phone': 'hhPhone', 'Guardian Email': 'hhEmail',
   'Street Address': 'hhStreet', 'Apartment or Unit': 'hhUnit', 'City': 'hhCity', 'State': 'hhState', 'ZIP Code': 'hhZip', 'Parish or County': 'hhParish',
   'Guardian 2 First Name': 'hhG2First', 'Guardian 2 Last Name': 'hhG2Last', 'Guardian 2 Relationship': 'hhG2Relationship',
@@ -258,9 +257,8 @@ function renderHousehold(hh) {
   $('#edit-household').hidden = !hh || editing;
   form.querySelector('[data-cancel-household]').hidden = !hh;
   if (!hh) {
-    const holder = recall('bryc-portal:holder');
-    if (holder && !form.elements.hhAccountHolder.value) setField(form, 'hhAccountHolder', holder);
-    if (!form.elements.hhEmail.value && user && holder !== 'Student') form.elements.hhEmail.value = user.email;
+    // The account holder is the parent or guardian, so their email is the account's.
+    if (!form.elements.hhEmail.value && user) form.elements.hhEmail.value = user.email;
     return;
   }
   const address = [hh['Street Address'], hh['Apartment or Unit']].filter(Boolean).join(', ');
@@ -446,7 +444,6 @@ function loadNew() {
   const form = appApi().form, hh = state?.household || {};
   Object.entries(APP_FROM_HOUSEHOLD).forEach(([name, col]) => { if (hh[col]) setField(form, name, hh[col]); });
   syncReveals(form);
-  if (hh['Account Holder'] === 'Student' && user) setField(form, 'studentEmail', user.email);
   setDraftHead('New application', '');
 }
 
@@ -590,7 +587,7 @@ function setNav() {
 
 async function signOut() {
   if (dirty) await saveDraft().catch(() => {});
-  store(cacheKey(), null); store('bryc-portal:holder', null);
+  store(cacheKey(), null);
   current = null; taskCtx = null; state = null; pending = null;
   appApi()?.reset(); setDraftHead('', '');
   try { await A.signOut(auth); } catch (e) {}
