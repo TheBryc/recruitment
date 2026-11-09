@@ -150,7 +150,7 @@ async function sendForm(type,form,msg,button,thanks,optimistic,again){
  button.disabled=true;let done=null;
  const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');const p=document.createElement('p');p.textContent=thanks;done.append(p);
   if(again){const ask=document.createElement('p');ask.className='form-done-ask';ask.textContent=again.prompt;const b=document.createElement('button');b.type='button';b.className='btn btn-secondary';b.textContent=again.label;b.addEventListener('click',()=>startAnother(form,done,msg,button));done.append(ask,b);
-   if(again.apply){const p=document.createElement('p');p.className='form-done-ask';p.textContent='Ready to apply? A parent or guardian can create a family account and start the application.';const a=document.createElement('button');a.type='button';a.className='btn btn-primary';a.dataset.view='apply';a.textContent='Start an application';done.append(p,a);}}
+   if(again.apply){const p=document.createElement('p');p.className='form-done-ask';p.textContent='Ready to apply? A parent or guardian can create a household account and start the application.';const a=document.createElement('button');a.type='button';a.className='btn btn-primary';a.dataset.view='apply';a.textContent='Start an application';done.append(p,a);}}
   form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
  try{// Collect answers before hiding the form: hidden questions are skipped on purpose.
   const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
