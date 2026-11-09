@@ -488,7 +488,7 @@ function sendInquiryEmail(ss, response, brycId) {
 
     const lines = [`Thank you for your interest in BRYC. We received ${student ? student + "'s" : 'your'} information, and someone from our admissions team will reach out soon.`];
     if (sheetUrl) lines.push('Our information sheet has an overview of BRYC. You can open it with the button below.');
-    lines.push(`When you're ready to apply, a parent or guardian can create a family account at ${PORTAL.applyUrl}.`);
+    lines.push(`When you're ready to apply, a parent or guardian can create a household account at ${PORTAL.applyUrl}.`);
 
     sendFamilyEmail(ss, 'Inquiry received', to, {
       subject: 'Thanks for your interest in BRYC',

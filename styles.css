@@ -509,7 +509,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 @media (prefers-reduced-motion:reduce){.section-rail button::before,.section-rail .rail-label{transition:none}}
 /* What BRYC offers: a numbered journey from 8th grade to a career */
 .journey{list-style:none;margin:44px 0 0;padding:22px 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;counter-reset:stage;position:relative}
-.journey::before{content:"";position:absolute;left:0;right:0;top:20px;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--pink-soft),var(--pink))}
 .stage{position:relative;counter-increment:stage;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:36px 22px 24px}
 .stage::before{content:counter(stage,decimal-leading-zero);position:absolute;top:-22px;left:22px;width:44px;height:44px;border-radius:50%;background:var(--pink);color:#fff;display:grid;place-items:center;font-weight:800;font-size:.9rem;box-shadow:0 0 0 5px var(--surface)}
 .stage-grade{display:block;font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pink-text);margin-bottom:6px}
@@ -534,11 +533,7 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 @media(max-width:1100px){
   .journey{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-left:24px;overscroll-behavior-x:contain;scrollbar-width:none;margin:36px -24px 0;padding:30px 24px 8px}
   .journey::-webkit-scrollbar{display:none}
-  .journey::before{display:none}
   .stage{flex:0 0 min(46%,420px);scroll-snap-align:start}
-  .stage::after{content:"";position:absolute;top:-2px;left:44px;right:-58px;height:4px;background:linear-gradient(90deg,var(--pink-soft),var(--pink))}
-  .stage:last-child::after{display:none}
-  .stage::before{z-index:1}
   .support-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .paths-after{grid-template-columns:1fr}
 }
@@ -565,3 +560,10 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .swipe-hint{font-size:.85rem;color:var(--muted);margin:10px 0 0;text-align:center}
 @media (prefers-reduced-motion:reduce){.swipe-dots button::before{transition:none}}
 @media(max-width:700px){.path-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}.path-chips li{border-radius:12px;padding:10px 12px;font-size:.88rem;text-align:center;display:grid;place-items:center;line-height:1.25}}
+/* Journey outlines darken from entry to the end: light rose, raspberry, deep raspberry, wine. */
+.stage:nth-child(1){--stage:#fb7185;--stage-ink:#4c0519}
+.stage:nth-child(2){--stage:#e11d48;--stage-ink:#fff}
+.stage:nth-child(3){--stage:#be123c;--stage-ink:#fff}
+.stage:nth-child(4){--stage:#881337;--stage-ink:#fff}
+.stage{border:2px solid var(--stage,var(--line))}
+.stage::before{background:var(--stage,var(--pink));color:var(--stage-ink,#fff)}

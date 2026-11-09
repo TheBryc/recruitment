@@ -185,7 +185,7 @@ test('interest form: the family gets a thank-you email with the information shee
   assert.match(m.htmlBody, /Hi Casey,/);
   assert.match(m.htmlBody, /href="https:\/\/drive.google.com\/file\/d\/info-sheet"/);
   assert.match(m.body, /View the BRYC information sheet: https:\/\/drive.google.com/);
-  assert.match(m.body, /a parent or guardian can create a family account/);
+  assert.match(m.body, /a parent or guardian can create a household account/);
 
   // Processing again (for example after a fix) does not send a second email.
   ctx.processPending();
