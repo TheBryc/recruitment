@@ -53,6 +53,33 @@ openFromHash();window.addEventListener('popstate',openFromHash);window.addEventL
   dots.forEach((b,i)=>{if(i===current)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});};
  const soon=()=>{if(!queued){queued=true;requestAnimationFrame(update);}};
  addEventListener('scroll',soon,{passive:true});addEventListener('resize',soon);document.addEventListener('bryc:view',soon);update();})();
+// Swipe rows: a list with data-swipe scrolls sideways on smaller screens (see
+// styles.css). Underneath it gets dots for each stop and previous/next arrows.
+// On wide screens the list is a normal grid and the controls stay hidden.
+$$('[data-swipe]').forEach(row=>{
+ const bar=document.createElement('div');bar.className='swipe-bar';bar.hidden=true;
+ const mk=(text,label)=>{const b=document.createElement('button');b.type='button';b.className='swipe-arrow';b.textContent=text;b.setAttribute('aria-label',label);return b;};
+ const prev=mk('←','Previous'),next=mk('→','Next'),dots=document.createElement('div');dots.className='swipe-dots';
+ bar.append(prev,dots,next);row.after(bar);
+ const hint=row.dataset.swipe==='Step'?Object.assign(document.createElement('p'),{className:'swipe-hint',textContent:'Swipe to follow the journey from 8th grade to a career.'}):null;
+ if(hint){hint.hidden=true;bar.after(hint);}
+ let stops=[];
+ const how=()=>matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth';
+ const pad=()=>parseFloat(getComputedStyle(row).scrollPaddingLeft)||0;
+ const go=i=>row.scrollTo({left:Math.max(0,stops[i]-pad()),behavior:how()});
+ const current=()=>{const x=row.scrollLeft+pad();let best=0;stops.forEach((s,i)=>{if(Math.abs(s-x)<Math.abs(stops[best]-x))best=i;});
+  if(row.scrollLeft+row.clientWidth>=row.scrollWidth-2)best=stops.length-1;return best;};
+ const mark=()=>{const i=current();[...dots.children].forEach((d,j)=>{if(j===i)d.setAttribute('aria-current','true');else d.removeAttribute('aria-current');});
+  prev.disabled=i===0;next.disabled=i===stops.length-1;};
+ const build=()=>{const scrolls=row.scrollWidth>row.clientWidth+2;bar.hidden=!scrolls;if(hint)hint.hidden=!scrolls;if(!scrolls)return;
+  stops=[...new Set([...row.children].map(c=>c.offsetLeft))].sort((a,b)=>a-b);
+  dots.replaceChildren(...stops.map((s,i)=>{const d=document.createElement('button');d.type='button';
+   const name=row.dataset.swipe==='Step'?row.children[i]?.querySelector('h3')?.textContent:'';
+   d.setAttribute('aria-label',name?`Step ${i+1}: ${name}`:`${row.dataset.swipe} ${i+1} of ${stops.length}`);d.addEventListener('click',()=>go(i));return d;}));
+  mark();};
+ prev.addEventListener('click',()=>go(Math.max(0,current()-1)));next.addEventListener('click',()=>go(Math.min(stops.length-1,current()+1)));
+ let queued=false;row.addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(()=>{queued=false;mark();});}},{passive:true});
+ let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(build,150);});document.addEventListener('bryc:view',()=>setTimeout(build,0));build();});
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and, when they know it, a parent or guardian.
