@@ -14,6 +14,17 @@ $('#mobile-menu')?.addEventListener('click',()=>$('.topbar nav')?.classList.togg
 // Open the page named in the link, so links like #refer or #apply can be shared.
 const openFromHash=()=>{const name=location.hash.slice(1)||'home';if(document.getElementById(name)?.classList.contains('view')&&!document.getElementById(name).classList.contains('active'))view(name,true);};
 openFromHash();window.addEventListener('popstate',openFromHash);window.addEventListener('hashchange',openFromHash);
+// Home video: a silent loop behind the headline. People who turn off motion or
+// save data see the still frame instead and can press play. It pauses when it
+// is scrolled away or another page is open, and loads only when it first plays.
+(()=>{const v=$('.hero-video'),b=$('#hero-pause');if(!v||!b)return;
+ let wanted=!(matchMedia('(prefers-reduced-motion: reduce)').matches||navigator.connection?.saveData),onScreen=true;
+ const label=()=>{b.classList.toggle('paused',!wanted);b.setAttribute('aria-label',wanted?'Pause background video':'Play background video');};
+ const sync=()=>{if(wanted&&onScreen&&$('#home')?.classList.contains('active')){if(!v.src){v.muted=true;v.src=v.dataset.src;}v.play().catch(e=>{if(e.name!=='AbortError'){wanted=false;label();}});}else v.pause();};
+ if('IntersectionObserver' in window)new IntersectionObserver(es=>{onScreen=es[0].isIntersecting;sync();}).observe(v);
+ b.addEventListener('click',()=>{wanted=!wanted;label();sync();});
+ document.addEventListener('bryc:view',sync);
+ b.hidden=false;label();sync();})();
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and a parent or guardian so staff can match them.

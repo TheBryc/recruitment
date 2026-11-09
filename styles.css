@@ -69,26 +69,29 @@ a{color:inherit}
 .section-head p{color:var(--on-dark-muted);font-size:1.05rem}
 .band{background:var(--night-2)}
 
-/* Home: hero */
-.hero-wrap{position:relative;overflow:hidden;background:var(--pink);color:#fff}
-.hero-wrap .kicker{color:#fff;opacity:.85}
-.hero-wrap .accent{color:#161616}
-.hero-wrap .lead{color:#fff}
-.hero-wrap .btn-primary{background:#161616;border-color:#161616;color:#fff}
-.hero-wrap .btn-primary:hover{background:#000;border-color:#000}
-.hero-wrap .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
-.hero-wrap .btn-ghost:hover{border-color:#fff}
-.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding-top:72px;padding-bottom:96px}
-.hero .lead{margin-bottom:32px}
-.hero-art{position:relative;aspect-ratio:1/1;max-height:520px;width:100%;border-radius:50%;overflow:hidden;background:var(--pink-deep);box-shadow:0 30px 80px rgba(80,0,20,.25)}
-.hero-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.hero-visual{position:relative;width:100%;max-width:520px;justify-self:center;padding-bottom:28px}
-/* The note sits on the circle's bottom edge so it never covers the logo. */
-.hero-note{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(78%,330px);background:#fff;color:#161616;box-shadow:0 10px 30px rgba(22,22,22,.18);border:1px solid var(--line-dark);border-radius:14px;padding:14px 18px;text-align:center}
-.hero-note strong{display:block;font-size:.98rem;line-height:1.35}
-.hero-note span{display:block;color:var(--muted);font-size:.86rem;margin-top:4px}
-.hero-ask{margin:22px 0 0;color:var(--on-dark-muted);font-size:.95rem}
-.hero-ask a{color:#fff;font-weight:600}
+/* Home: hero. A silent video loop inside a raspberry frame, with the headline
+   stamped on raspberry blocks and the details on a dark fade. */
+.hero-wrap{position:relative;background:var(--pink);color:#fff;padding:0 24px 28px}
+.hero-stage{position:relative;max-width:1440px;margin:0 auto;height:clamp(540px,calc(100vh - 140px),780px);border-radius:0 0 24px 24px;overflow:hidden;background:#161616 url("media/hero-poster.jpg") center/cover no-repeat}
+.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.hero-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.08) 30%,rgba(0,0,0,.45) 62%,rgba(0,0,0,.82) 100%),linear-gradient(90deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 55%)}
+.hero-overlay{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:48px;align-items:end;padding:48px max(32px,calc((100% - var(--wrap))/2 + 24px)) 52px}
+.hero-wrap .kicker{display:block;color:#fff;opacity:1;margin-bottom:16px;text-shadow:0 1px 8px rgba(0,0,0,.5)}
+/* Each line of the headline gets its own raspberry block that hugs the words, even when a line wraps. */
+.hero-stamp{margin:0;font-size:clamp(2.8rem,5.6vw,5.6rem);line-height:1.16;color:#fff}
+.hero-stamp span{background:var(--pink);padding:0 .16em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.hero-mission{display:block;font-family:var(--display);font-weight:800;font-style:italic;font-size:clamp(1.5rem,2.4vw,2.1rem);line-height:1.05;margin-bottom:12px;text-shadow:0 1px 10px rgba(0,0,0,.45)}
+.hero-wrap .lead{color:#fff;margin-bottom:24px;text-shadow:0 1px 10px rgba(0,0,0,.5)}
+.hero-wrap .actions{flex-wrap:wrap}
+.hero-wrap .btn-primary{background:var(--pink);border-color:var(--pink);color:#fff}
+.hero-wrap .btn-primary:hover{background:var(--pink-deep);border-color:var(--pink-deep)}
+.hero-wrap .btn-ghost{background:rgba(0,0,0,.2);color:#fff;border-color:rgba(255,255,255,.75)}
+.hero-wrap .btn-ghost:hover{background:rgba(0,0,0,.35);border-color:#fff}
+/* Pause/play: background motion must be stoppable. */
+.hero-pause{position:absolute;top:18px;right:18px;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.7);background:rgba(0,0,0,.4);display:grid;place-items:center;padding:0;color:#fff}
+.hero-pause:hover{background:rgba(0,0,0,.6);border-color:#fff}
+.hero-pause-icon{width:12px;height:14px;border-left:4px solid #fff;border-right:4px solid #fff}
+.hero-pause.paused .hero-pause-icon{width:0;height:0;border-style:solid;border-width:7px 0 7px 12px;border-color:transparent transparent transparent #fff;margin-left:3px}
 
 /* Home: ticker */
 .ticker{background:#161616;color:#fff;overflow:hidden;white-space:nowrap}
@@ -278,8 +281,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
   .navlink.nav-apply{margin:8px 0 0;text-align:center}
   .mobile-menu{display:block}
   .container,.inner{padding-left:16px;padding-right:16px}
-  .hero{grid-template-columns:1fr;gap:40px;padding-top:44px;padding-bottom:60px}
-  .hero-visual{max-width:400px;margin:0 auto}
   .section{padding:64px 0}
   .offer-grid{grid-template-columns:1fr}
   .steps{grid-template-columns:1fr 1fr;gap:28px 20px}
@@ -482,3 +483,11 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .navlink.nav-signout{margin-left:8px;border:1px solid var(--field);border-radius:999px;padding:9px 18px;background:#fff;color:var(--ink);box-shadow:none}
 .navlink.nav-signout:hover{border-color:var(--pink);color:var(--pink-text);background:var(--pink-soft)}
 @media(max-width:900px){.navlink.nav-signout{margin:8px 0 0;text-align:center}}
+@media(max-width:900px){
+  .hero-wrap{padding:0 12px 14px}
+  .hero-stage{height:auto;min-height:clamp(560px,calc(100svh - 110px),720px);display:flex;border-radius:0 0 18px 18px}
+  .hero-overlay{position:relative;inset:auto;flex:1;grid-template-columns:1fr;gap:20px;align-content:end;padding:96px 20px 28px}
+  .hero-shade{background:linear-gradient(180deg,rgba(0,0,0,.1) 0%,rgba(0,0,0,.25) 35%,rgba(0,0,0,.85) 100%)}
+  .hero-stamp{font-size:clamp(2.6rem,11.5vw,4rem)}
+  .hero-pause{top:12px;right:12px}
+}
