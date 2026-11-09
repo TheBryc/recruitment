@@ -26,6 +26,33 @@ openFromHash();window.addEventListener('popstate',openFromHash);window.addEventL
  b.addEventListener('click',()=>{wanted=!wanted;label();sync();});
  document.addEventListener('bryc:view',sync);
  b.hidden=false;label();sync();})();
+// Section menu. On wide screens the home page gets a rail of dots on the right:
+// hover it to see each section's name, click one to jump there. On every page, a
+// Back to top button appears after scrolling (on wide screens the rail covers home).
+// Add data-nav-label to a home page section to give it a stop on the rail.
+(()=>{const home=$('#home');if(!home)return;
+ const sections=[...home.querySelectorAll('[data-nav-label]')];
+ const headerH=()=>$('.topbar')?.offsetHeight||0;
+ const how=()=>matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth';
+ const jump=i=>{const y=i===0?0:sections[i].getBoundingClientRect().top+scrollY-headerH();scrollTo({top:Math.max(0,y),behavior:how()});};
+ const rail=document.createElement('nav');rail.className='section-rail';rail.setAttribute('aria-label','Sections on this page');
+ const list=document.createElement('ol');
+ const dots=sections.map((sec,i)=>{const li=document.createElement('li'),b=document.createElement('button'),t=document.createElement('span');
+  b.type='button';t.className='rail-label';t.textContent=sec.dataset.navLabel;b.append(t);b.addEventListener('click',()=>jump(i));li.append(b);list.append(li);return b;});
+ rail.append(list);
+ const top=document.createElement('button');top.type='button';top.className='to-top';top.setAttribute('aria-label','Back to top');top.hidden=true;
+ const arrow=document.createElement('span');arrow.setAttribute('aria-hidden','true');arrow.textContent='↑';top.append(arrow);
+ top.addEventListener('click',()=>scrollTo({top:0,behavior:how()}));
+ document.body.append(rail,top);
+ let queued=false;
+ const update=()=>{queued=false;const onHome=home.classList.contains('active');rail.hidden=!onHome;top.hidden=scrollY<600;
+  if(!onHome)return;
+  // The current section is the last one whose top has passed a line a third of the way down the screen.
+  const line=headerH()+innerHeight/3,atBottom=innerHeight+scrollY>=document.documentElement.scrollHeight-4;let current=0;
+  sections.forEach((s,i)=>{if(s.getBoundingClientRect().top<=line)current=i;});if(atBottom)current=sections.length-1;
+  dots.forEach((b,i)=>{if(i===current)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');});};
+ const soon=()=>{if(!queued){queued=true;requestAnimationFrame(update);}};
+ addEventListener('scroll',soon,{passive:true});addEventListener('resize',soon);document.addEventListener('bryc:view',soon);update();})();
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and, when they know it, a parent or guardian.
