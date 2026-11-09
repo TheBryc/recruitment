@@ -498,3 +498,17 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .essay-guidance{background:var(--pink-soft);color:var(--ink);border-radius:12px;padding:12px 16px}
 .contact-rule{margin:16px 0 14px}
 @media(max-width:600px){.info-band-actions{width:100%}.info-band-actions .btn{flex:1}}
+/* Section menu: dots on the right of the home page (wide screens), and Back to top */
+.section-rail{display:none}
+.section-rail ol{list-style:none;margin:0;padding:8px 6px;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:999px;box-shadow:0 8px 24px rgba(22,22,22,.14)}
+.section-rail button{position:relative;display:block;width:24px;height:24px;border:0;background:transparent;padding:0;cursor:pointer}
+.section-rail button::before{content:"";position:absolute;inset:8px;border-radius:50%;background:#b9b8b3;transition:inset .15s,background .15s}
+.section-rail button:hover::before,.section-rail button:focus-visible::before{background:var(--ink-2)}
+.section-rail button[aria-current="true"]::before{inset:6px;background:var(--pink)}
+.section-rail .rail-label{position:absolute;right:calc(100% + 12px);top:50%;transform:translate(6px,-50%);white-space:nowrap;background:#161616;color:#fff;font-size:.82rem;font-weight:600;line-height:1;padding:7px 11px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+.section-rail button[aria-current="true"] .rail-label{background:var(--pink)}
+.section-rail:hover .rail-label,.section-rail:has(:focus-visible) .rail-label{opacity:1;transform:translate(0,-50%);pointer-events:auto}
+@media(min-width:1240px){.section-rail:not([hidden]){display:block;position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:40}body:has(#home.active) .to-top{display:none}}
+.to-top{position:fixed;right:16px;bottom:16px;z-index:40;width:46px;height:46px;border-radius:50%;border:1px solid var(--field);background:#fff;color:var(--ink);font-size:1.25rem;font-weight:700;box-shadow:0 8px 24px rgba(22,22,22,.16);display:grid;place-items:center;padding:0}
+.to-top:hover{border-color:var(--pink);color:var(--pink-text);background:var(--pink-soft)}
+@media (prefers-reduced-motion:reduce){.section-rail button::before,.section-rail .rail-label{transition:none}}
