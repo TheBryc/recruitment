@@ -529,18 +529,39 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .support-grid li{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}
 .support-grid strong{display:block;color:var(--ink);margin-bottom:4px;line-height:1.3}
 .support-grid span{display:block;color:var(--ink-2);font-size:.9rem;line-height:1.45}
+/* Smaller screens: the journey becomes a swipe row, entry to end, one stage at a time.
+   Each stage draws its own piece of the line so it reaches the next stage's number. */
 @media(max-width:1100px){
-  .journey{grid-template-columns:1fr;gap:16px;padding:0 0 0 62px;max-width:780px}
-  .journey::before{left:20px;right:auto;top:8px;bottom:8px;width:4px;height:auto;background:linear-gradient(180deg,var(--pink-soft),var(--pink))}
-  .stage{padding:22px 22px 22px}
-  .stage::before{top:18px;left:-62px}
+  .journey{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-left:24px;overscroll-behavior-x:contain;scrollbar-width:none;margin:36px -24px 0;padding:30px 24px 8px}
+  .journey::-webkit-scrollbar{display:none}
+  .journey::before{display:none}
+  .stage{flex:0 0 min(46%,420px);scroll-snap-align:start}
+  .stage::after{content:"";position:absolute;top:-2px;left:44px;right:-58px;height:4px;background:linear-gradient(90deg,var(--pink-soft),var(--pink))}
+  .stage:last-child::after{display:none}
+  .stage::before{z-index:1}
   .support-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .paths-after{grid-template-columns:1fr}
 }
-@media(max-width:600px){
-  .journey{padding-left:52px}
-  .journey::before{left:16px}
-  .stage::before{left:-52px;width:36px;height:36px;font-size:.8rem}
+/* Phones: one stage per screen with the next one peeking in, and the support cards
+   swipe two at a time instead of stacking eight deep. */
+@media(max-width:700px){
+  .journey{margin:32px -16px 0;padding:30px 16px 8px;scroll-padding-left:16px}
+  .stage{flex-basis:84%}
   .paths-after{padding:24px 20px}
-  .support-grid{grid-template-columns:1fr}
+  .support-grid{display:grid;grid-template-columns:none;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:78%;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-left:16px;overscroll-behavior-x:contain;scrollbar-width:none;margin:0 -16px;padding:0 16px 6px}
+  .support-grid::-webkit-scrollbar{display:none}
+  .support-grid li{scroll-snap-align:start}
 }
+/* Swipe rows: dots and arrows under a row that scrolls sideways (added by script.js) */
+.journey,.support-grid{position:relative}
+.journey:focus-visible,.support-grid:focus-visible{outline:2px solid var(--pink);outline-offset:4px}
+.swipe-bar{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
+.swipe-bar .swipe-arrow{width:40px;height:40px;border-radius:50%;border:1px solid var(--field);background:#fff;color:var(--ink);font-size:1.05rem;font-weight:700;display:grid;place-items:center;padding:0}
+.swipe-bar .swipe-arrow:disabled{opacity:.35;cursor:default}
+.swipe-dots{display:flex;gap:6px;align-items:center}
+.swipe-dots button{width:26px;height:26px;border:0;background:transparent;padding:0;display:grid;place-items:center}
+.swipe-dots button::before{content:"";width:8px;height:8px;border-radius:999px;background:#c4c3be;transition:width .2s,background .2s}
+.swipe-dots button[aria-current="true"]::before{width:22px;background:var(--pink)}
+.swipe-hint{font-size:.85rem;color:var(--muted);margin:10px 0 0;text-align:center}
+@media (prefers-reduced-motion:reduce){.swipe-dots button::before{transition:none}}
+@media(max-width:700px){.path-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}.path-chips li{border-radius:12px;padding:10px 12px;font-size:.88rem;text-align:center;display:grid;place-items:center;line-height:1.25}}

@@ -15,6 +15,7 @@ python3 -m http.server 8766 &
 node tests/e2e/mock-exec.mjs &
 node tests/e2e/portal.e2e.cjs
 node tests/e2e/section-menu.e2e.cjs
+node tests/e2e/swipe.e2e.cjs
 ```
 
 Requires Playwright with Chromium. Set `SHOTS=/some/folder` to save screenshots elsewhere.
