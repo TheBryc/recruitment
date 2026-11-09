@@ -4,8 +4,8 @@ import {test, beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {HEADERS, Range, createEnv} from './harness.mjs';
 
-let sheets, ctx, savedFiles;
-function load() { ({sheets, ctx, savedFiles} = createEnv()); }
+let sheets, ctx, savedFiles, mails, props;
+function load() { ({sheets, ctx, savedFiles, mails, props} = createEnv()); }
 const isDate = v => Object.prototype.toString.call(v) === '[object Date]';
 // Submit, then run the every-minute job the way the trigger would.
 const submit = body => ctx.doPost({postData: {contents: JSON.stringify(body)}}).body;
@@ -118,7 +118,7 @@ test('edits on rows without a BRYC ID do nothing', () => {
 test('required answers, unknown forms, and bots are rejected', () => {
   assert.equal(post({form: 'nope', fields: {}}).ok, false);
   const r = post({form: 'inquiry', fields: {'Student First Name': 'A'}});
-  assert.equal(r.ok, false); assert.match(r.error, /Guardian Phone/);
+  assert.equal(r.ok, false); assert.match(r.error, /Current Grade/);
   assert.deepEqual(post({...inquiry, website: 'spam'}), {ok: true});
   assert.equal(sheets.INQUIRIES_RAW.getLastRow(), 1, 'nothing written');
 });
@@ -160,4 +160,41 @@ test('an upload that saves empty is flagged and the application still saves', ()
   post({...application, files: [{column: 'Academic Record', name: 'blank.png', mimeType: 'image/png', data: ''}]});
   assert.match(raw('APPLICATIONS_RAW', 2, 'Academic Record'), /^UPLOAD FAILED: ask family to resend/);
   assert.equal(master(2, 'Application Status'), 'Submitted');
+});
+
+test('interest form: guardian details are optional, but one phone or email is required', () => {
+  const student = {'Student First Name': 'Riley', 'Student Last Name': 'Young', 'School': 'Thrive Academy', 'Current Grade': '7th',
+    'How did you first hear about BRYC?': 'BRYC representative'};
+  const none = post({form: 'inquiry', fields: student});
+  assert.equal(none.ok, false); assert.match(none.error, /at least one phone number or email/);
+  assert.equal(sheets.INQUIRIES_RAW.getLastRow(), 1, 'nothing written');
+
+  const ok = post({form: 'inquiry', fields: {...student, 'Student Phone': '225-555-0177'}});
+  assert.equal(ok.ok, true, ok.error);
+  assert.equal(master(2, 'Fellow First Name'), 'Riley');
+  assert.equal(mails.length, 0, 'no email address, so nothing is sent');
+});
+
+test('interest form: the family gets a thank-you email with the information sheet', () => {
+  props.INFO_SHEET_URL = 'https://drive.google.com/file/d/info-sheet';
+  post({form: 'inquiry', fields: {...inquiry.fields, 'Student Email': 'jordan@example.com'}});
+  assert.equal(mails.length, 1);
+  const m = mails[0];
+  assert.equal(m.to, 'jordan@example.com,casey@example.com');
+  assert.equal(m.subject, 'Thanks for your interest in BRYC');
+  assert.match(m.htmlBody, /Hi Casey,/);
+  assert.match(m.htmlBody, /href="https:\/\/drive.google.com\/file\/d\/info-sheet"/);
+  assert.match(m.body, /View the BRYC information sheet: https:\/\/drive.google.com/);
+  assert.match(m.body, /a parent or guardian can create a family account/);
+
+  // Processing again (for example after a fix) does not send a second email.
+  ctx.processPending();
+  assert.equal(mails.length, 1);
+});
+
+test('interest form: without an information sheet link, the email points to the application', () => {
+  post(inquiry);
+  assert.equal(mails.length, 1);
+  assert.match(mails[0].body, /Start an application: https:\/\/thebryc.github.io\/recruitment\/#apply/);
+  assert.doesNotMatch(mails[0].body, /information sheet/);
 });

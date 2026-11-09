@@ -27,11 +27,14 @@ const CONFIG = {
     inquiry: {
       sheet: 'INQUIRIES_RAW',
       rank: 2,
+      // Students as young as 7th grade fill this out and may not know a parent's
+      // phone or email, so guardian details are optional. We still need one way
+      // to reach the family.
       required: [
         'Student First Name', 'Student Last Name', 'School', 'Current Grade',
-        'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship',
-        'Guardian Phone', 'Guardian Email', 'How did you first hear about BRYC?'
-      ]
+        'How did you first hear about BRYC?'
+      ],
+      requireOneOf: ['Student Phone', 'Student Email', 'Guardian Phone', 'Guardian Email']
     },
     application: {
       sheet: 'APPLICATIONS_RAW',
@@ -110,6 +113,10 @@ function doPost(e) {
     const missing = formConfig.required.filter(h => isBlank(fields[h]));
     if (missing.length) {
       return jsonResponse({ ok: false, error: 'Missing required answers: ' + missing.join(', ') });
+    }
+
+    if (formConfig.requireOneOf && formConfig.requireOneOf.every(h => isBlank(fields[h]))) {
+      return jsonResponse({ ok: false, error: 'Please include at least one phone number or email so we can reach you.' });
     }
 
     // Save the raw answers and return right away so families aren't kept
@@ -375,6 +382,9 @@ function processResponseRow(ss, sourceSheet, responseRow) {
 
   // Portal applications: link the BRYC ID back to the family's account.
   if (formType === 'application') linkPortalApplication(ss, response, brycId);
+
+  // Interest form: thank the family and send the BRYC information sheet.
+  if (formType === 'inquiry') sendInquiryEmail(ss, response, brycId);
 }
 
 
