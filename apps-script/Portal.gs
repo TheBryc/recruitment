@@ -33,7 +33,7 @@ const PORTAL = {
 
   // Follow-up forms. A closed form shows as "opens soon" in the portal.
   tasks: {
-    onboarding: { sheet: 'ONBOARDING_RAW', open: false, title: 'Accept your spot and complete onboarding' },
+    onboarding: { sheet: 'ONBOARDING_RAW', open: true, title: 'Accept your spot and complete onboarding' },
     transportation: { sheet: 'TRANSPORTATION_RAW', open: false, title: 'Reserve transportation' },
     income: { sheet: 'INCOME_RAW', open: true, title: 'Verify household income', uploadColumns: ['Document 1', 'Document 2'] }
   },
