@@ -12,19 +12,19 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
 
   ok(await p.evaluate(() => [...document.querySelectorAll('.footer-links > *')].map(n => n.textContent.replace(/[↗(].*$/s, '').trim()).join('|')) === 'Home|About BRYC|FAQs|Staff sign-in', 'footer has Home, About BRYC, FAQs, Staff sign-in');
   ok(await p.isVisible('.section-rail'), 'rail shows on the home page');
-  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Home|Next steps|Get more info|Our mission|What BRYC offers|How to apply', 'rail lists the six sections');
+  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Home|The basics|What BRYC offers|Our mission|How to apply|Next steps', 'rail lists the six sections');
   ok(await cur() === 'Home', 'starts on Home');
   ok(!(await p.isVisible('.to-top')), 'no Back to top button on the desktop home page');
 
   await p.evaluate(() => scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})); await p.waitForTimeout(300);
-  ok(await cur() === 'How to apply', 'bottom of the page marks How to apply');
+  ok(await cur() === 'Next steps', 'bottom of the page marks Next steps');
   await p.hover('.section-rail'); await p.waitForTimeout(300);
   ok(await p.evaluate(() => getComputedStyle(document.querySelector('.section-rail .rail-label')).opacity) === '1', 'hovering shows the section names');
   await p.screenshot({path: out + '/rail-hover.png'});
   await p.click('.section-rail li:nth-child(2) button'); await p.waitForTimeout(400);
-  const gap = await p.evaluate(() => document.querySelector('[data-nav-label="Next steps"]').getBoundingClientRect().top - document.querySelector('.topbar').offsetHeight);
-  ok(Math.abs(gap) <= 2, 'Next steps lands just under the header (gap ' + gap + ')');
-  ok(await cur() === 'Next steps', 'Next steps is marked current');
+  const gap = await p.evaluate(() => document.querySelector('[data-nav-label="The basics"]').getBoundingClientRect().top - document.querySelector('.topbar').offsetHeight);
+  ok(Math.abs(gap) <= 2, 'The basics lands just under the header (gap ' + gap + ')');
+  ok(await cur() === 'The basics', 'The basics is marked current');
   await p.mouse.move(200, 450); await p.waitForTimeout(300);
   await p.screenshot({path: out + '/rail-idle.png'});
   await p.click('.section-rail li:first-child button'); await p.waitForTimeout(400);

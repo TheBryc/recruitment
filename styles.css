@@ -124,7 +124,6 @@ a{color:inherit}
 .steps li::before{content:"0" counter(step);display:block;font-family:var(--display);font-weight:800;font-size:2.2rem;line-height:1;color:var(--warm);margin-bottom:12px}
 .steps p{color:var(--on-dark-muted);margin:0;font-size:.97rem}
 
-/* Home: connect */
 
 /* White cards: forms read best dark-on-light */
 .form-card,.wizard-wrap,.form-done{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:20px;box-shadow:0 20px 60px rgba(22,22,22,.07)}
@@ -158,7 +157,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .optional{font-weight:400;color:var(--muted);font-size:.88rem}
 .heard{margin-top:18px}
 .wide-text{width:100%;margin-bottom:4px}
-#connect{scroll-margin-top:72px}
 .notice{margin:12px 0;color:var(--pink-text);font-weight:600}
 .notice:empty{display:none}
 
@@ -480,12 +478,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
   .hero-stamp{font-size:clamp(2.6rem,11.5vw,4rem)}
   .hero-pause{top:12px;right:12px}
 }
-/* Home: short "Get more info" band in place of the full form */
-.info-band{display:flex;justify-content:space-between;align-items:center;gap:32px;flex-wrap:wrap}
-.info-band-copy{max-width:640px}
-.info-band-copy h2{margin-bottom:10px}
-.info-band-copy p{color:var(--on-dark-muted);margin:0}
-.info-band-actions{display:flex;gap:12px;flex-wrap:wrap}
 /* Family account and application guidance */
 .account-note{background:var(--surface);border-radius:12px;padding:14px 16px;color:var(--ink-2);font-size:.95rem;margin:0 0 18px}
 .account-note strong{color:var(--ink)}
@@ -495,7 +487,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .apply-guidance li{margin:4px 0}
 .essay-guidance{background:var(--pink-soft);color:var(--ink);border-radius:12px;padding:12px 16px}
 .contact-rule{margin:16px 0 14px}
-@media(max-width:600px){.info-band-actions{width:100%}.info-band-actions .btn{flex:1}}
 /* Section menu: dots on the right of the home page (wide screens), and Back to top */
 .section-rail{display:none}
 .section-rail ol{list-style:none;margin:0;padding:8px 6px;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:999px;box-shadow:0 8px 24px rgba(22,22,22,.14)}
@@ -576,3 +567,12 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .stage li::marker{color:var(--stage-text,var(--pink))}
 /* Leave room under the footer so the Back to top button never covers a link. */
 .site-footer{padding-bottom:88px}
+/* Home: The basics, four quick facts for families new to BRYC */
+.basics{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.basics li{border:1px solid var(--line);border-top:4px solid var(--pink);border-radius:14px;padding:20px 20px 22px;background:#fff;color:var(--ink)}
+.basics-label{display:block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--pink-text);margin-bottom:8px}
+.basics strong{display:block;font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(1.35rem,2vw,1.7rem);line-height:1.05;margin-bottom:8px}
+.basics li>span:last-child{display:block;color:var(--ink-2);font-size:.92rem;line-height:1.5}
+.basics-more{margin:18px 0 0;color:var(--ink-2)}
+@media(max-width:900px){.basics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.basics{gap:10px}.basics li{padding:16px 14px 18px}.basics li>span:last-child{font-size:.86rem}}
