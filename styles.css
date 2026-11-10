@@ -560,10 +560,14 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .swipe-hint{font-size:.85rem;color:var(--muted);margin:10px 0 0;text-align:center}
 @media (prefers-reduced-motion:reduce){.swipe-dots button::before{transition:none}}
 @media(max-width:700px){.path-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}.path-chips li{border-radius:12px;padding:10px 12px;font-size:.88rem;text-align:center;display:grid;place-items:center;line-height:1.25}}
-/* Journey outlines darken from entry to the end: light rose, raspberry, deep raspberry, wine. */
-.stage:nth-child(1){--stage:#fb7185;--stage-ink:#4c0519}
-.stage:nth-child(2){--stage:#e11d48;--stage-ink:#fff}
-.stage:nth-child(3){--stage:#be123c;--stage-ink:#fff}
-.stage:nth-child(4){--stage:#881337;--stage-ink:#fff}
+/* Journey colors, one per step (from The BRYC Way): gold, orange, teal, purple.
+   --stage is the outline and number; --stage-ink is the number's text;
+   --stage-text is a deeper shade so small labels stay readable on white. */
+.stage:nth-child(1){--stage:#F0C917;--stage-ink:#161616;--stage-text:#8A6D00}
+.stage:nth-child(2){--stage:#E06326;--stage-ink:#161616;--stage-text:#B14A17}
+.stage:nth-child(3){--stage:#00ADAD;--stage-ink:#161616;--stage-text:#007A7A}
+.stage:nth-child(4){--stage:#383088;--stage-ink:#fff;--stage-text:#383088}
 .stage{border:2px solid var(--stage,var(--line))}
 .stage::before{background:var(--stage,var(--pink));color:var(--stage-ink,#fff)}
+.stage .stage-grade{color:var(--stage-text,var(--pink-text))}
+.stage li::marker{color:var(--stage-text,var(--pink))}
