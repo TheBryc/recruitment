@@ -148,55 +148,70 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok((await page.textContent('#student-list')).includes('Done'), 'income shows done');
   s = await admin(); ok(s.sheets.INCOME_RAW.length === 2 && s.files.some(f => f.folder === 'income-folder'), 'income row + file in income folder');
 
-  // 6. Onboarding: prefilled from the application, confirm and answer only what's new
+  // 6. Onboarding: six steps, prefilled from the application, confirm and answer only what's new
   await admin({op: 'enable', task: 'onboarding'});
+  await admin({op: 'school', row: ['Thrive Academy', 'Thrive Academy', 'East Baton Rouge', '']});
   await page.reload(); await page.waitForTimeout(1500);
   await page.click('#student-list .task-list li:first-child button');
-  ok(await page.isVisible('.task-form[data-task=onboarding]'), 'onboarding form');
+  ok(await page.isVisible('.task-form[data-task=onboarding]') && !(await page.isVisible('#task-submit')), 'onboarding wizard, no shared submit button');
+  ok((await page.textContent('#ob-count')) === 'Step 1 of 6 · Accept', 'starts on step 1: ' + await page.textContent('#ob-count'));
+  await page.click('#ob-next');
+  ok((await page.textContent('#ob-notice')).includes('highlighted'), 'must answer accept first');
   await page.check('input[name=obAccept][value=no]');
-  ok(await page.isVisible('#ob-decline') && !(await page.isVisible('#ob-rest')), 'decline shows reason, hides rest');
+  ok(await page.isVisible('#ob-decline') && (await page.textContent('#ob-next')) === 'Submit our response', 'decline shows reason and submit');
   await page.check('input[name=obAccept][value=yes]');
-  ok(await page.isVisible('#ob-rest') && !(await page.isVisible('#ob-decline')), 'accept shows the rest');
-  const card = n => `.task-form[data-task=onboarding] [data-confirm]:nth-of-type(${n})`;
-  const sum = async n => (await page.textContent(card(n) + ' .confirm-summary')).replace(/\s+/g, ' ');
-  ok(!(await page.isVisible('[name=obFirst]')) && (await sum(1)).includes('Jordan Sample') && (await sum(1)).includes('jordan@example.com'), 'student confirmed as a summary: ' + await sum(1));
-  ok(await page.isVisible('[name=obBirthday]'), 'new student questions stay open');
-  ok(await page.isVisible('[name=obParish]') && await page.inputValue('[name=obStreet]') === '123 Main St', 'address opens because parish is missing, rest prefilled');
-  ok((await sum(3)).includes('9th grade') && (await sum(3)).includes('Thrive Academy'), 'school summary: ' + await sum(3));
-  const parents = await sum(4);
-  ok(parents.includes('Casey Sample') && parents.includes('Godmother') && parents.includes('Morgan Sample') && parents.includes('9 Oak St, Zachary, Louisiana 70791') && !parents.includes('Second parent/guardianYes'), 'parents summary: ' + parents);
-  ok(await page.isVisible('[name=obG2Comms]'), 'second guardian communications question shown');
-  ok((await sum(5)).includes('$30,001–$48,000') && (await sum(5)).includes('English'), 'household summary: ' + await sum(5));
-  await shot('06b-onboarding-prefilled');
-  // Correct the student phone through Edit, then Done shows the new value
-  await page.click(card(1) + ' .confirm-toggle');
-  ok(await page.isVisible('[name=obStudentPhone]'), 'edit opens the student fields');
+  ok(!(await page.isVisible('#ob-decline')) && (await page.textContent('#ob-next')) === 'Continue →', 'accept continues');
+  await shot('06a-onboarding-step1');
+  await page.click('#ob-next');
+  const step = async () => page.textContent('#ob-count');
+  const sum = async sel => (await page.textContent(sel + ' .confirm-summary')).replace(/\s+/g, ' ');
+  const stepCard = n => `.ob-wizard .wizard-step.active [data-confirm]:nth-of-type(${n})`;
+  ok((await step()).includes('2 of 6 · Student'), 'step 2: ' + await step());
+  ok(!(await page.isVisible('[name=obFirst]')) && (await sum(stepCard(1))).includes('Jordan Sample'), 'student confirmed as a summary: ' + await sum(stepCard(1)));
+  ok(!(await page.$$eval('[name=obShirt] option', o => o.map(x => x.textContent).join())).includes('Youth'), 'adult shirt sizes only');
+  // Correct the student phone through Edit
+  await page.click(stepCard(1) + ' .confirm-toggle');
   await page.fill('[name=obStudentPhone]', '(225) 555-0777');
-  await page.click(card(1) + ' .confirm-toggle');
-  ok((await sum(1)).includes('(225) 555-0777'), 'summary shows the correction');
-  // Submitting with blanks opens nothing new but flags the new questions
-  await page.click('#task-submit');
-  ok((await page.textContent('#task-message')).includes('highlighted'), 'onboarding validation');
-  await page.fill('[name=obParish]', 'East Baton Rouge');
+  await page.click(stepCard(1) + ' .confirm-toggle');
+  ok((await sum(stepCard(1))).includes('(225) 555-0777'), 'summary shows the correction');
+  await page.click('#ob-next');
+  ok((await step()).includes('2 of 6'), 'cannot continue with new questions blank');
   await page.fill('[name=obBirthday]', '2012-05-01'); await page.selectOption('[name=obShirt]', 'Adult M');
-  await page.selectOption('[name=obRace]', 'Multi-Racial / Other Race');
-  ok(await page.isVisible('[name=obRaceOther]'), 'race description appears for multi-racial');
-  await page.fill('[name=obRaceOther]', 'Black and Filipino');
-  await page.fill('[name=obDistrict]', 'EBR'); await page.fill('[name=obSchoolParish]', 'East Baton Rouge');
-  await page.check('input[name=obPlatforms][value=yes]'); await page.selectOption('[name=obG2Comms]', 'Yes');
-  await page.selectOption('[name=obGov]', 'No'); await page.check('input[name=obAlum][value=no]');
+  await page.selectOption('[name=obRace]', 'Multi-Racial / Other Race'); await page.fill('[name=obRaceOther]', 'Black and Filipino');
+  await shot('06b-onboarding-student');
+  await page.click('#ob-next');
+  ok((await step()).includes('3 of 6 · Home and school'), 'step 3: ' + await step());
+  ok(await page.isVisible('[name=obParish]') && await page.inputValue('[name=obStreet]') === '123 Main St', 'address opens because parish is missing');
+  const school = await sum('.ob-wizard .wizard-step.active [data-confirm]:nth-of-type(2)');
+  ok(school.includes('Thrive Academy') && school.includes('East Baton Rouge') && !(await page.isVisible('[name=obDistrict]')), 'district and parish filled from SCHOOLS: ' + school);
+  await page.fill('[name=obParish]', 'East Baton Rouge');
+  await page.check('input[name=obPlatforms][value=yes]');
+  await shot('06c-onboarding-home-school');
+  await page.click('#ob-next');
+  ok((await step()).includes('4 of 6 · Family'), 'step 4: ' + await step());
+  const parents = await sum(stepCard(1));
+  ok(parents.includes('Casey Sample') && parents.includes('Godmother') && parents.includes('Morgan Sample') && parents.includes('9 Oak St, Zachary, Louisiana 70791'), 'parents summary: ' + parents);
+  ok((await sum(stepCard(2))).includes('$30,001–$48,000'), 'household summary');
+  await page.selectOption('[name=obG2Comms]', 'Yes'); await page.selectOption('[name=obGov]', 'No'); await page.check('input[name=obAlum][value=no]');
+  await page.click('#ob-next');
+  ok((await step()).includes('5 of 6 · Health'), 'step 5');
   await page.selectOption('[name=obInjury]', {index: 1}); await page.selectOption('[name=obNeuro]', 'No');
+  await page.click('#ob-next');
+  ok((await step()).includes('6 of 6 · Sign') && (await page.textContent('#ob-next')) === 'Submit', 'last step says Submit');
+  await page.click('#ob-back'); ok((await step()).includes('5 of 6'), 'back works'); await page.click('#ob-next');
   await page.check('[name=obPolicies]'); await page.check('input[name=obCounseling][value=yes]'); await page.check('input[name=obMedia][value=yes]');
   await page.fill('[name=obSignature]', 'Casey Sample'); await page.check('[name=obConfirm]');
-  await page.click('#task-submit');
+  await shot('06d-onboarding-sign');
+  await page.click('#ob-next');
   await page.waitForFunction(() => document.querySelector('.view.active')?.id === 'portal', null, {timeout: 8000}).catch(() => {});
-  ok((await page.textContent('#portal-flash')).includes('onboarding form'), 'onboarding flash: ' + await page.textContent('#portal-flash'));
+  ok((await page.textContent('#portal-flash')).includes('confirmation email'), 'onboarding flash: ' + await page.textContent('#portal-flash'));
   s = await admin(); const OB = s.sheets.ONBOARDING_RAW, ob = h => OB[1][OB[0].indexOf(h)];
   ok(OB.length === 2 && ob('Student First Name') === 'Jordan' && ob('Guardian Relationship') === 'Other: Godmother' && ob('Second Guardian City') === 'Zachary'
-    && ob('Household Income Range') === '$30,001–$48,000' && ob('Student Race / Ethnicity') === 'Multi-Racial / Other Race' && ob('Race / Ethnicity Description') === 'Black and Filipino',
-    'onboarding row carries the confirmed answers: ' + [ob('Student First Name'), ob('Guardian Relationship'), ob('Second Guardian City'), ob('Student Race / Ethnicity')]);
+    && ob('Household Income Range') === '$30,001–$48,000' && ob('Student Race / Ethnicity') === 'Multi-Racial / Other Race' && ob('T-Shirt Size') === 'Adult M',
+    'onboarding row carries every step: ' + [ob('Student First Name'), ob('Guardian Relationship'), ob('Second Guardian City'), ob('T-Shirt Size')]);
+  ok(ob('School District') === 'Thrive Academy' && ob('School Parish') === 'East Baton Rouge', 'district and parish saved: ' + [ob('School District'), ob('School Parish')]);
   ok(ob('Changed From Application') === 'Student Phone; Parish', 'changes flagged for staff: ' + ob('Changed From Application'));
-  ok(String(ob('Accepts Admission')).startsWith('Yes'), 'accepted');
+  ok(s.mails.some(m => m.subject === "We received Jordan's onboarding form"), 'confirmation email sent right away');
 
   // 7. Add a second student, then sign out
   await page.click('#add-student');

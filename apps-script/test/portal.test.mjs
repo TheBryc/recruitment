@@ -204,7 +204,9 @@ test('onboarding: accepting completes it; declining records the decline without 
   assert.equal(master(3, 'Decision'), 'Declined');
   assert.equal(master(3, 'Current RAM Status'), 'Declined');
   ctx.processPending();
-  assert.equal(mails.length, beforeDecline, 'no "decision is ready" email after the family declines');
+  const after = mails.slice(beforeDecline);
+  assert.ok(after.some(m => /We received your response for Avery/.test(m.subject)), 'decline is confirmed right away');
+  assert.ok(!after.some(m => /decision is ready/i.test(m.subject)), 'no "decision is ready" email after the family declines');
   assert.ok(sent > 0);
 });
 
@@ -268,6 +270,57 @@ test('only an exact "Admitted" decision unlocks onboarding', () => {
   assert.deepEqual(casey('load').state.students[0].tasks, [], 'not until the decision is released');
   setMaster(2, 'Decision Released', true);
   assert.ok(casey('load').state.students[0].tasks.some(t => t.key === 'onboarding'));
+});
+
+test('form confirmations go out the moment a form is submitted', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  const before = mails.length;
+  casey('submitTask', {studentKey, task: 'onboarding', fields: {'Accepts Admission': 'Yes, we accept', 'Guardian Signature': 'Casey Sample'}});
+  const sent = mails.slice(before);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].subject, "We received Jordan's onboarding form");
+  assert.match(sent[0].to, /casey@example\.com/);
+});
+
+test('releasing a decision in MASTER emails the family right away, once', () => {
+  const {casey} = submitted();
+  ctx.processPending();
+  const before = mails.length;
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  const col = HEADERS.MASTER.indexOf('Decision Released') + 1;
+  const edit = {range: {getSheet: () => sheets.MASTER, getRow: () => 2, getLastRow: () => 2, getColumn: () => col, getLastColumn: () => col}};
+  ctx.onMasterChange(edit);
+  assert.equal(mails.length, before + 1);
+  assert.match(mails[mails.length - 1].subject, /decision is ready for Jordan/);
+  ctx.onMasterChange(edit); ctx.processPending();
+  assert.equal(mails.length, before + 1, 'not sent twice');
+  // An edit to a column that doesn't affect emails does nothing.
+  ctx.onMasterChange({range: {getSheet: () => sheets.MASTER, getRow: () => 2, getLastRow: () => 2, getColumn: () => 1, getLastColumn: () => 1}});
+  assert.equal(mails.length, before + 1);
+  assert.ok(casey);
+});
+
+test('the decision email is skipped if the family already finished onboarding', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  casey('submitTask', {studentKey, task: 'onboarding', fields: {'Accepts Admission': 'Yes, we accept'}});
+  const before = mails.length;
+  ctx.processPending();
+  assert.ok(!mails.slice(before).some(m => /decision is ready/i.test(m.subject)));
+});
+
+test('onboarding fills school district and parish from the SCHOOLS tab', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  sheets.SCHOOLS.appendRow(['Thrive Academy', 'Thrive Academy', 'East Baton Rouge', '']);
+  const {casey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  const task = casey('load').state.students[0].tasks.find(t => t.key === 'onboarding');
+  assert.equal(task.prefill['School District'], 'Thrive Academy');
+  assert.equal(task.prefill['School Parish'], 'East Baton Rouge');
+  assert.deepEqual(task.schools, [['Thrive Academy', 'Thrive Academy', 'East Baton Rouge']]);
 });
 
 test('siblings live under one household with their own statuses', () => {

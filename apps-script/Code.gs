@@ -129,6 +129,13 @@ function doPost(e) {
       .filter(file => CONFIG.uploadColumns.includes(file.column))
       .forEach(file => { fields[file.column] = saveUpload(file, fields); });
 
+    // Interest form: thank the family right away instead of waiting for processing.
+    if (payload.form === 'inquiry') {
+      ensureHeader(sheet, 'Thank-You Sent');
+      sendInquiryEmail(SpreadsheetApp.getActiveSpreadsheet(), fields, '');
+      fields['Thank-You Sent'] = new Date();
+    }
+
     appendByHeader(sheet, fields);
 
     return jsonResponse({ ok: true });
@@ -249,6 +256,40 @@ function setupTriggers() {
     .forEach(t => ScriptApp.deleteTrigger(t));
 
   ScriptApp.newTrigger('processPending').timeBased().everyMinutes(CONFIG.processEveryMinutes).create();
+
+  // Sends family emails the moment staff change a decision or status in MASTER.
+  // (The plain onEdit below can't send email, so this one is installed.)
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'onMasterChange')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('onMasterChange').forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
+}
+
+
+// Columns whose change can mean a family email: a release, a decision, a review, an income request.
+const EMAIL_COLUMNS = ['Decision', 'Decision Released', 'Application Status', 'Income Verification Required'];
+
+function onMasterChange(e) {
+
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  if (sheet.getName() !== CONFIG.masterSheet || e.range.getLastRow() < 2) return;
+
+  const headers = getHeaderMap(sheet);
+  const watched = EMAIL_COLUMNS.map(h => headers[normalizeHeader(h)]).filter(Boolean);
+  if (!watched.some(c => c >= e.range.getColumn() && c <= e.range.getLastColumn())) return;
+
+  const rows = [];
+  for (let r = Math.max(2, e.range.getRow()); r <= e.range.getLastRow(); r++) rows.push(r);
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return;   // the 15-minute job will catch it
+  try {
+    SpreadsheetApp.flush();
+    sendStatusEmails(SpreadsheetApp.getActiveSpreadsheet(), rows);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 
@@ -384,7 +425,8 @@ function processResponseRow(ss, sourceSheet, responseRow) {
   if (formType === 'application') linkPortalApplication(ss, response, brycId);
 
   // Interest form: thank the family and send the BRYC information sheet.
-  if (formType === 'inquiry') sendInquiryEmail(ss, response, brycId);
+  // (Sent on arrival now; this covers rows saved before that change.)
+  if (formType === 'inquiry' && isBlank(pick(response, ['Thank-You Sent']))) sendInquiryEmail(ss, response, brycId);
 }
 
 
