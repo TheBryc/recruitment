@@ -81,6 +81,15 @@ $$('[data-swipe]').forEach(row=>{
  prev.addEventListener('click',()=>go(Math.max(0,current()-1)));next.addEventListener('click',()=>go(Math.min(stops.length-1,current()+1)));
  let queued=false;row.addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(()=>{queued=false;mark();});}},{passive:true});
  let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(build,150);});document.addEventListener('bryc:view',()=>setTimeout(build,0));build();});
+// Ticker under the video: repeat the word list until it covers the screen, then
+// move one list-width per loop at a steady speed, so it never runs out of words.
+(()=>{const t=$('.ticker'),track=t?.querySelector('.ticker-track'),group=track?.querySelector('.ticker-group');if(!group)return;
+ const fill=()=>{track.querySelectorAll('.ticker-group+.ticker-group').forEach(n=>n.remove());
+  const w=group.getBoundingClientRect().width;if(!w||!t.clientWidth)return;
+  for(let i=1;i<Math.ceil(t.clientWidth/w)+1;i++)track.append(group.cloneNode(true));
+  track.style.setProperty('--ticker-shift',w+'px');track.style.setProperty('--ticker-time',Math.round(w/40)+'s');t.classList.add('is-moving');};
+ fill();document.fonts?.ready.then(fill);let r;addEventListener('resize',()=>{clearTimeout(r);r=setTimeout(fill,200);});
+ document.addEventListener('bryc:view',()=>setTimeout(fill,0));})();
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and, when they know it, a parent/guardian.
