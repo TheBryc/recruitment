@@ -21,3 +21,5 @@ http.createServer((req, res) => {
 }).listen(8791, () => console.log('mock exec on 8791'));
 import vm from 'node:vm';
 function require_enable(task) { vm.runInContext(`PORTAL.tasks.${task}.open = true`, env.ctx); }
+// Start with onboarding closed; the test opens it when it gets there.
+vm.runInContext('PORTAL.tasks.onboarding.open = false', env.ctx);

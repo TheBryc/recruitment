@@ -172,6 +172,7 @@ test('income verification appears when required, is requested by email, and upda
 });
 
 test('follow-up forms are refused when closed, unreleased, or for another family', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = false', ctx);
   const {casey, studentKey} = submitted();
   assert.match(casey('submitTask', {studentKey, task: 'onboarding', fields: {}}).error, /not open yet/);
   assert.match(casey('submitTask', {studentKey, task: 'income', fields: {}}).error, /not available/);
