@@ -569,11 +569,14 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .site-footer{padding-bottom:88px}
 /* Home: The basics, four quick facts for families new to BRYC */
 .basics{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.basics li{border:1px solid var(--line);border-top:4px solid var(--pink);border-radius:14px;padding:20px 20px 22px;background:#fff;color:var(--ink)}
+.basics>li{border:1px solid var(--line);border-top:4px solid var(--pink);border-radius:14px;padding:20px 20px 22px;background:#fff;color:var(--ink)}
 .basics-label{display:block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--pink-text);margin-bottom:8px}
 .basics strong{display:block;font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:clamp(1.35rem,2vw,1.7rem);line-height:1.05;margin-bottom:8px}
-.basics li>span:last-child{display:block;color:var(--ink-2);font-size:.92rem;line-height:1.5}
+.basics-text{color:var(--ink-2);font-size:.92rem;line-height:1.5}
 .basics-more{margin:18px 0 0;color:var(--ink-2)}
 @media(max-width:900px){.basics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.basics{gap:10px}.basics li{padding:16px 14px 18px}.basics li>span:last-child{font-size:.86rem}}
-.basics li>span:last-child b{color:var(--ink);font-weight:700}
+@media(max-width:600px){.basics{gap:10px}.basics>li{padding:16px 14px 18px}.basics-text{font-size:.86rem}}
+.basics-text b{color:var(--ink);font-weight:700}
+.basics-list{margin:0 0 8px;padding-left:1.1em}
+.basics-list li{margin:3px 0}
+.basics-list li::marker{color:var(--pink)}
