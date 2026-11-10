@@ -12,8 +12,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
 
   ok(await p.evaluate(() => [...document.querySelectorAll('.footer-links > *')].map(n => n.textContent.replace(/[↗(].*$/s, '').trim()).join('|')) === 'Home|About BRYC|FAQs|Staff sign-in', 'footer has Home, About BRYC, FAQs, Staff sign-in');
   ok(await p.isVisible('.section-rail'), 'rail shows on the home page');
-  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Top|Next steps|Get more info|Our mission|What BRYC offers|How to apply', 'rail lists the six sections');
-  ok(await cur() === 'Top', 'starts on Top');
+  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Home|Next steps|Get more info|Our mission|What BRYC offers|How to apply', 'rail lists the six sections');
+  ok(await cur() === 'Home', 'starts on Home');
   ok(!(await p.isVisible('.to-top')), 'no Back to top button on the desktop home page');
 
   await p.evaluate(() => scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})); await p.waitForTimeout(300);
@@ -28,7 +28,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await p.mouse.move(200, 450); await p.waitForTimeout(300);
   await p.screenshot({path: out + '/rail-idle.png'});
   await p.click('.section-rail li:first-child button'); await p.waitForTimeout(400);
-  ok(await p.evaluate(() => scrollY) === 0, 'Top goes back to the top');
+  ok(await p.evaluate(() => scrollY) === 0, 'Home goes back to the top');
 
   await p.evaluate(() => BRYCView('faq')); await p.waitForTimeout(300);
   ok(!(await p.isVisible('.section-rail')), 'rail hidden on other pages');
