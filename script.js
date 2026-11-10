@@ -83,7 +83,7 @@ $$('[data-swipe]').forEach(row=>{
  let t;addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(build,150);});document.addEventListener('bryc:view',()=>setTimeout(build,0));build();});
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
-// Interest form: one submission captures the student and, when they know it, a parent or guardian.
+// Interest form: one submission captures the student and, when they know it, a parent/guardian.
 const inquiry=$('#inquiry-form');
 const CONTACTS=['studentPhone','studentEmail','guardianPhone','guardianEmail'];
 // The "add a phone or email" message sits under the student phone, but any of the four answers it.
@@ -151,7 +151,7 @@ async function sendForm(type,form,msg,button,thanks,optimistic,again){
  button.disabled=true;let done=null;
  const showDone=()=>{done=document.createElement('div');done.className='form-done';done.setAttribute('role','status');const p=document.createElement('p');p.textContent=thanks;done.append(p);
   if(again){const ask=document.createElement('p');ask.className='form-done-ask';ask.textContent=again.prompt;const b=document.createElement('button');b.type='button';b.className='btn btn-secondary';b.textContent=again.label;b.addEventListener('click',()=>startAnother(form,done,msg,button));done.append(ask,b);
-   if(again.apply){const p=document.createElement('p');p.className='form-done-ask';p.textContent='Ready to apply? A parent or guardian can create a household account and start the application.';const a=document.createElement('button');a.type='button';a.className='btn btn-primary';a.dataset.view='apply';a.textContent='Start an application';done.append(p,a);}}
+   if(again.apply){const p=document.createElement('p');p.className='form-done-ask';p.textContent='Ready to apply? A parent/guardian can create a household account and start the application.';const a=document.createElement('button');a.type='button';a.className='btn btn-primary';a.dataset.view='apply';a.textContent='Start an application';done.append(p,a);}}
   form.hidden=true;form.after(done);done.scrollIntoView({behavior:'smooth',block:'center'});};
  try{// Collect answers before hiding the form: hidden questions are skipped on purpose.
   const body={form:type,fields:collectAnswers(form),files:await collectFiles(form),website:form.elements.namedItem('website')?.value||''};
@@ -165,7 +165,7 @@ async function sendForm(type,form,msg,button,thanks,optimistic,again){
  .forEach(([form,type,msgSel,thanks,again])=>form?.addEventListener('submit',e=>{e.preventDefault();let first=formErrors(form);const msg=$(msgSel);
  // The interest form needs one way to reach the family: any phone or email.
  if(!first&&type==='inquiry'&&!CONTACTS.some(n=>form.elements.namedItem(n).value.trim())){
-  first=form.elements.namedItem('studentPhone');first.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent='Add at least one phone number or email for the student or a parent or guardian.';first.insertAdjacentElement('afterend',n);}
+  first=form.elements.namedItem('studentPhone');first.setAttribute('aria-invalid','true');const n=document.createElement('div');n.className='field-error';n.setAttribute('role','alert');n.textContent='Add at least one phone number or email for the student or a parent/guardian.';first.insertAdjacentElement('afterend',n);}
  if(first){msg.textContent='Please fix the highlighted questions.';first.focus({preventScroll:true});first.scrollIntoView({behavior:'smooth',block:'center'});return;}
  sendForm(type,form,msg,form.querySelector('button[type="submit"]'),thanks,true,again);}));
 $$('[data-scroll]').forEach(n=>n.addEventListener('click',e=>{e.preventDefault();if(!$('#home').classList.contains('active'))view('home');document.getElementById(n.dataset.scroll)?.scrollIntoView({behavior:'smooth'});}));

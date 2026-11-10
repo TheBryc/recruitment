@@ -45,7 +45,7 @@ const PORTAL = {
     EMAIL_LOG: ['Sent At', 'Type', 'To', 'Subject', 'BRYC ID', 'Household ID', 'Result']
   },
 
-  // Optional second parent or guardian, on the household and the application.
+  // Optional second parent/guardian, on the household and the application.
   secondGuardianFields: ['Second Guardian', 'Guardian 2 First Name', 'Guardian 2 Last Name', 'Guardian 2 Relationship', 'Guardian 2 Phone',
     'Guardian 2 Email', 'Guardian 2 Different Address', 'Guardian 2 Street Address', 'Guardian 2 Apartment or Unit',
     'Guardian 2 City', 'Guardian 2 State', 'Guardian 2 ZIP Code'],
@@ -488,7 +488,7 @@ function sendInquiryEmail(ss, response, brycId) {
 
     const lines = [`Thank you for your interest in BRYC. We received ${student ? student + "'s" : 'your'} information, and someone from our admissions team will reach out soon.`];
     if (sheetUrl) lines.push('Our information sheet has an overview of BRYC. You can open it with the button below.');
-    lines.push(`When you're ready to apply, a parent or guardian can create a household account at ${PORTAL.applyUrl}.`);
+    lines.push(`When you're ready to apply, a parent/guardian can create a household account at ${PORTAL.applyUrl}.`);
 
     sendFamilyEmail(ss, 'Inquiry received', to, {
       subject: 'Thanks for your interest in BRYC',
