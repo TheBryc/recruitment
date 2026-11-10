@@ -18,10 +18,11 @@ openFromHash();window.addEventListener('popstate',openFromHash);window.addEventL
 // Home video: a silent loop behind the headline. People who turn off motion or
 // save data see the still frame instead and can press play. It pauses when it
 // is scrolled away or another page is open, and loads only when it first plays.
+// Phones and small tablets get the lighter 720p file.
 (()=>{const v=$('.hero-video'),b=$('#hero-pause');if(!v||!b)return;
  let wanted=!(matchMedia('(prefers-reduced-motion: reduce)').matches||navigator.connection?.saveData),onScreen=true;
  const label=()=>{b.classList.toggle('paused',!wanted);b.setAttribute('aria-label',wanted?'Pause background video':'Play background video');};
- const sync=()=>{if(wanted&&onScreen&&$('#home')?.classList.contains('active')){if(!v.src){v.muted=true;v.src=v.dataset.src;}v.play().catch(e=>{if(e.name!=='AbortError'){wanted=false;label();}});}else v.pause();};
+ const sync=()=>{if(wanted&&onScreen&&$('#home')?.classList.contains('active')){if(!v.src){v.muted=true;v.src=matchMedia('(max-width: 900px)').matches&&v.dataset.srcSmall||v.dataset.src;}v.play().catch(e=>{if(e.name!=='AbortError'){wanted=false;label();}});}else v.pause();};
  if('IntersectionObserver' in window)new IntersectionObserver(es=>{onScreen=es[0].isIntersecting;sync();}).observe(v);
  b.addEventListener('click',()=>{wanted=!wanted;label();sync();});
  document.addEventListener('bryc:view',sync);
