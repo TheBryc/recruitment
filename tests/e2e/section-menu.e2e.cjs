@@ -12,7 +12,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
 
   ok(await p.evaluate(() => [...document.querySelectorAll('.footer-links > *')].map(n => n.textContent.replace(/[↗(].*$/s, '').trim()).join('|')) === 'Home|About BRYC|FAQs|Staff sign-in', 'footer has Home, About BRYC, FAQs, Staff sign-in');
   ok(await p.isVisible('.section-rail'), 'rail shows on the home page');
-  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Home|The basics|What BRYC offers|Our mission|How to apply|Next steps', 'rail lists the six sections');
+  ok(await p.evaluate(() => [...document.querySelectorAll('.section-rail .rail-label')].map(n => n.textContent).join('|')) === 'Home|The basics|What BRYC offers|How to apply|Next steps', 'rail lists the five sections');
   ok(await cur() === 'Home', 'starts on Home');
   ok(!(await p.isVisible('.to-top')), 'no Back to top button on the desktop home page');
 

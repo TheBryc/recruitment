@@ -65,7 +65,8 @@ a{color:inherit}
 .accent{display:block;font-family:var(--body);font-style:italic;font-weight:600;text-transform:none;letter-spacing:0;color:var(--warm);font-size:clamp(1.25rem,2vw,1.75rem);line-height:1.2;margin:4px 0 22px}
 .lead{font-size:1.15rem;color:var(--on-dark-muted);max-width:620px}
 .section{padding:96px 0}
-.section-head{max-width:720px;margin-bottom:44px}
+.section-head{margin-bottom:44px}
+.section-head>p{max-width:720px}
 .section-head p{color:var(--on-dark-muted);font-size:1.05rem}
 .band{background:var(--night-2)}
 
@@ -95,11 +96,15 @@ a{color:inherit}
 
 /* Home: ticker */
 .ticker{background:#161616;color:#fff;overflow:hidden;white-space:nowrap}
-.ticker-track{display:inline-flex;align-items:center;gap:28px;padding:14px 0;animation:ticker 32s linear infinite}
+/* The word list is repeated by script.js until it fills the screen, and the
+   strip moves exactly one list-width per loop, so it never runs out of words. */
+.ticker-track{display:flex;width:max-content;padding:14px 0}
+.ticker-group{display:flex;align-items:center;gap:28px;padding-right:28px;flex-shrink:0}
+.ticker.is-moving .ticker-track{animation:ticker var(--ticker-time,60s) linear infinite}
 .ticker-track span{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:1.05rem;letter-spacing:.08em}
 .ticker-track .dot{width:9px;height:9px;border-radius:50%;background:var(--pink);flex-shrink:0}
-@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--ticker-shift,0px)))}}
+@media (prefers-reduced-motion:reduce){.ticker.is-moving .ticker-track{animation:none}}
 
 /* Home: where do you want to start */
 .paths{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-dark)}
@@ -112,9 +117,6 @@ a{color:inherit}
 .path:hover .path-arrow,.path:focus-visible .path-arrow{background:var(--pink);border-color:var(--pink);color:#fff;transform:rotate(-45deg)}
 
 /* Home: mission */
-.mission{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:-.015em;font-size:clamp(1.5rem,2.7vw,2.4rem);line-height:1.06;max-width:1050px;margin:0 0 28px}
-.mission .hl{color:var(--pink)}
-.mission-sub{color:var(--on-dark-muted);font-size:1.1rem;max-width:620px}
 
 /* Home: What BRYC offers (journey, paths, support) */
 
@@ -164,7 +166,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .inner{max-width:var(--wrap);margin:0 auto;padding:72px 24px 96px}
 .back-link{display:inline-flex;align-items:center;gap:8px;margin:-36px 0 28px;padding:8px 0;border:0;background:none;color:var(--on-dark-muted);font-weight:600;font-size:.95rem}
 .back-link:hover{color:var(--on-dark)}
-.mission-sub strong{color:var(--on-dark)}
 .page-head{max-width:900px;font-size:clamp(2.1rem,4.2vw,3.5rem)}
 .inner>.lead{margin-bottom:44px}
 
