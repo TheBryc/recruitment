@@ -241,50 +241,126 @@
 </form>
 <form class="task-form" data-task="onboarding" hidden="" novalidate="">
 <h2>Accept your spot and complete onboarding</h2>
-<p>Welcome to BRYC! This form tells us what we need to know to get your student ready. It takes about 15 minutes.</p>
+<p>Welcome to BRYC! We filled in what you told us on the application. Look it over, fix anything that has changed, and answer the new questions. It takes about 10 minutes.</p>
 <fieldset class="field-block plain" data-required-radio="obAccept"><legend class="question-title">Do you accept your student’s admission to BRYC?</legend><div class="role-choice"><label class="choice"><input name="obAccept" type="radio" value="yes" data-col="Accepts Admission" data-label="Yes, we accept" data-reveal="#ob-rest"/><span>Yes, we accept</span></label><label class="choice"><input name="obAccept" type="radio" value="no" data-col="Accepts Admission" data-label="No, we are declining" data-reveal="#ob-rest"/><span>No, we are declining</span></label></div></fieldset>
 <label hidden="" id="ob-decline">Before you go, please share why you’re declining. <span class="optional">(optional)</span><textarea maxlength="1500" name="obDeclineReason" rows="3" data-col="Decline Reason"></textarea></label>
 <div hidden="" id="ob-rest">
-<h3 class="part-title">About your student</h3><div class="form-grid">
-<label>Preferred first name <span class="optional">(optional)</span><input maxlength="80" name="obPreferredName" data-col="Student Preferred First Name"/></label>
-<label>Gender<select name="obGender" data-col="Student Gender"><option value="">Select one</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select></label>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Your student</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your application</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label>First name<input maxlength="80" name="obFirst" required="" data-col="Student First Name" data-sum="Name"/></label>
+<label>Last name<input maxlength="80" name="obLast" required="" data-col="Student Last Name" data-join="obFirst" data-join-sep=" "/></label>
+<label>Gender <span class="optional">(optional)</span><select name="obGender" data-col="Student Gender" data-sum="Gender"><option value="">Select one</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select></label>
+<label>Student email <span class="optional">(optional)</span><input maxlength="254" name="obStudentEmail" type="email" data-col="Student Email" data-sum="Student email"/></label>
+<label>Student phone <span class="optional">(optional)</span><input name="obStudentPhone" type="tel" data-col="Student Phone" data-sum="Student phone"/></label>
+</div>
+<div class="confirm-ask">
+<p class="confirm-new">New questions</p>
+<div class="form-grid">
+<label>Does your student go by a different first name? <span class="optional">(optional)</span><input maxlength="80" name="obPreferredName" data-col="Student Preferred First Name"/></label>
 <label>Preferred pronouns<select name="obPronouns" data-col="Student Pronouns" data-other="#ob-pronouns-other"><option value="">Select one</option><option>She/her</option><option>He/him</option><option>They/them</option><option>Other</option><option>Prefer not to say</option></select></label>
 <label hidden="" id="ob-pronouns-other">Please describe<input maxlength="80" name="obPronounsOther" type="text"/></label>
-<label>Race / ethnicity<select name="obRace" required="" data-col="Student Race / Ethnicity"><option value="">Select one</option><option>Black or African American</option><option>Hispanic or Latino</option><option>White</option><option>Asian</option><option>American Indian or Alaska Native</option><option>Native Hawaiian or Other Pacific Islander</option><option>Multi-Racial / Other Race</option><option>Prefer not to say</option></select></label>
-<label>If Multi-Racial / Other Race, how does your student identify? <span class="optional">(optional)</span><input maxlength="120" name="obRaceOther" data-col="Race / Ethnicity Description"/></label>
 <label>Birthday<input name="obBirthday" required="" type="date" data-col="Student Birthday"/></label>
 <label>T-shirt size<select name="obShirt" required="" data-col="T-Shirt Size"><option value="">Select one</option><option>Youth S</option><option>Youth M</option><option>Youth L</option><option>Adult XS</option><option>Adult S</option><option>Adult M</option><option>Adult L</option><option>Adult XL</option><option>Adult 2XL</option><option>Adult 3XL</option></select></label>
-<label>Primary language at home<select name="obLanguage" required="" data-col="Primary Language"><option value="">Select one</option><option>English</option><option>Spanish</option><option>Another language</option></select></label>
+<label>Race / ethnicity<select name="obRace" required="" data-col="Student Race / Ethnicity" data-show="#ob-race-other" data-show-value="Multi-Racial / Other Race"><option value="">Select one</option><option>Black or African American</option><option>Hispanic or Latino</option><option>White</option><option>Asian</option><option>American Indian or Alaska Native</option><option>Native Hawaiian or Other Pacific Islander</option><option>Multi-Racial / Other Race</option><option>Prefer not to say</option></select></label>
+<label hidden="" id="ob-race-other">How does your student identify?<input maxlength="120" name="obRaceOther" required="" data-col="Race / Ethnicity Description"/></label>
 </div>
-<h3 class="part-title">Home address</h3><div class="form-grid">
-<label class="wide">Street address<input name="obStreet" required="" data-col="Street Address"/></label>
-<label class="wide">Apartment or unit <span class="optional">(optional)</span><input name="obUnit" data-col="Apartment or Unit"/></label>
-<label>City<input name="obCity" required="" data-col="City"/></label>
-<label>State<select name="obState" required="" data-col="State" data-use-value=""><option value="">Select state</option><option value="LA">Louisiana</option><option value="MS">Mississippi</option><option value="TX">Texas</option><option value="AR">Arkansas</option><option value="Other">Other</option></select></label>
-<label>ZIP code<input inputmode="numeric" maxlength="10" name="obZip" required="" data-col="ZIP Code"/></label>
-<label>Parish<input name="obParish" required="" data-col="Parish"/></label>
 </div>
-<h3 class="part-title">School</h3><div class="form-grid">
-<label>Grade during the program year<select name="obGrade" required="" data-col="Grade in Program Year"><option value="">Select one</option><option>8th grade</option><option>9th grade</option><option>10th grade</option><option>11th grade</option><option>12th grade</option></select></label>
-<label>School<input maxlength="150" name="obSchool" required="" data-col="School"/></label>
-<label>School district<input maxlength="120" name="obDistrict" required="" data-col="School District"/></label>
+</section>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Home address</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your application</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label class="wide">Street address<input name="obStreet" required="" autocomplete="address-line1" data-col="Street Address" data-sum="Address"/></label>
+<label class="wide">Apartment or unit <span class="optional">(optional)</span><input name="obUnit" autocomplete="address-line2" data-col="Apartment or Unit" data-join="obStreet"/></label>
+<label>City<input name="obCity" required="" autocomplete="address-level2" data-col="City" data-join="obStreet"/></label>
+<label>State<select name="obState" required="" data-col="State" data-use-value="" data-join="obStreet"><option value="">Select state</option><option value="LA">Louisiana</option><option value="MS">Mississippi</option><option value="TX">Texas</option><option value="AR">Arkansas</option><option value="Other">Other</option></select></label>
+<label>ZIP code<input inputmode="numeric" maxlength="10" name="obZip" required="" autocomplete="postal-code" data-col="ZIP Code" data-join="obStreet" data-join-sep=" "/></label>
+<label>Parish<input name="obParish" required="" placeholder="e.g., East Baton Rouge" data-col="Parish" data-sum="Parish"/></label>
+</div>
+</section>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">School</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your application</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label>Grade during the program year<select name="obGrade" required="" data-col="Grade in Program Year" data-sum="Grade"><option value="">Select one</option><option>8th grade</option><option>9th grade</option><option>10th grade</option><option>11th grade</option><option>12th grade</option></select></label>
+<label>School<input maxlength="150" name="obSchool" required="" data-col="School" data-sum="School"/></label>
+</div>
+<div class="confirm-ask">
+<p class="confirm-new">New questions</p>
+<div class="form-grid">
+<label>School district<input maxlength="120" name="obDistrict" required="" placeholder="e.g., East Baton Rouge Parish Schools" data-col="School District"/></label>
 <label>School parish<input maxlength="80" name="obSchoolParish" required="" data-col="School Parish"/></label>
 </div>
 <fieldset class="field-block plain" data-required-radio="obPlatforms"><legend class="question-title">Does BRYC have your permission to access your student’s school platforms (such as their online gradebook)?</legend><div class="role-choice"><label class="choice"><input name="obPlatforms" type="radio" value="yes" data-col="Platform Access Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obPlatforms" type="radio" value="no" data-col="Platform Access Permission" data-label="No"/><span>No</span></label></div></fieldset>
-<h3 class="part-title">Family</h3>
-<fieldset class="field-block plain" data-required-radio="obAlum"><legend class="question-title">Has anyone in your student’s immediate family graduated from BRYC?</legend><div class="role-choice"><label class="choice"><input name="obAlum" type="radio" value="yes" data-col="Family BRYC Graduate" data-label="Yes" data-reveal="#ob-alum-names"/><span>Yes</span></label><label class="choice"><input name="obAlum" type="radio" value="no" data-col="Family BRYC Graduate" data-label="No" data-reveal="#ob-alum-names"/><span>No</span></label></div></fieldset>
-<label hidden="" id="ob-alum-names">Their name(s)<input maxlength="200" name="obAlumNames" data-col="Family BRYC Graduate Names"/></label>
-<fieldset class="field-block plain" data-required-radio="obSecond"><legend class="question-title">Would you like to add another parent/guardian?</legend><div class="role-choice"><label class="choice"><input name="obSecond" type="radio" value="yes" data-col="Second Guardian" data-label="Yes" data-reveal="#ob-second"/><span>Yes</span></label><label class="choice"><input name="obSecond" type="radio" value="no" data-col="Second Guardian" data-label="No" data-reveal="#ob-second"/><span>No</span></label></div></fieldset>
-<div class="form-grid" hidden="" id="ob-second">
-<label>First name<input maxlength="80" name="obG2First" required="" data-col="Second Guardian First Name"/></label>
-<label>Last name<input maxlength="80" name="obG2Last" required="" data-col="Second Guardian Last Name"/></label>
-<label>Email<input maxlength="254" name="obG2Email" required="" type="email" data-col="Second Guardian Email"/></label>
-<label>Phone<input name="obG2Phone" required="" type="tel" data-col="Second Guardian Phone"/></label>
-<label class="wide">Relationship to student<select name="obG2Rel" required="" data-col="Second Guardian Relationship"><option value="">Select one</option><option>Mother</option><option>Father</option><option>Stepmother</option><option>Stepfather</option><option>Grandmother</option><option>Grandfather</option><option>Aunt</option><option>Uncle</option><option>Older sibling</option><option>Foster parent</option><option>Legal guardian</option><option>Other</option></select></label>
-<label>Lives at the same address?<select name="obG2Same" required="" data-col="Second Guardian Same Address"><option value="">Select one</option><option>Yes</option><option>No</option></select></label>
-<label>Include on all BRYC communications?<select name="obG2Comms" required="" data-col="Second Guardian On Communications"><option value="">Select one</option><option>Yes</option><option>No</option></select></label>
 </div>
+</section>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Parents and guardians</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your application</p>
+<dl class="confirm-summary"></dl>
+<div class="confirm-fields">
+<div class="form-grid">
+<label>First name<input maxlength="80" name="obG1First" required="" data-col="Guardian First Name" data-sum="Parent/guardian"/></label>
+<label>Last name<input maxlength="80" name="obG1Last" required="" data-col="Guardian Last Name" data-join="obG1First" data-join-sep=" "/></label>
+<label>Relationship to student<select name="obG1Rel" required="" data-col="Guardian Relationship" data-other="#ob-g1-rel-other" data-sum="Relationship"><option value="">Select one</option><option>Mother</option><option>Father</option><option>Stepmother</option><option>Stepfather</option><option>Grandmother</option><option>Grandfather</option><option>Aunt</option><option>Uncle</option><option>Older sibling</option><option>Foster parent</option><option>Legal guardian</option><option>Other</option></select></label>
+<label hidden="" id="ob-g1-rel-other">Please describe<input maxlength="80" name="obG1RelOther" type="text"/></label>
+<label>Phone<input name="obG1Phone" required="" type="tel" data-col="Guardian Phone" data-sum="Phone"/></label>
+<label>Email<input maxlength="254" name="obG1Email" required="" type="email" data-col="Guardian Email" data-sum="Email"/></label>
+</div>
+<fieldset class="field-block plain" data-required-radio="obSecond"><legend class="question-title">Is there another parent or guardian we should have on file?</legend><div class="role-choice"><label class="choice"><input name="obSecond" type="radio" value="yes" data-col="Second Guardian" data-label="Yes" data-reveal="#ob-second"/><span>Yes</span></label><label class="choice"><input name="obSecond" type="radio" value="no" data-col="Second Guardian" data-label="No" data-reveal="#ob-second" data-sum="Second parent/guardian" data-sum-break=""/><span>No</span></label></div></fieldset>
+<div hidden="" id="ob-second">
+<div class="form-grid">
+<label>First name<input maxlength="80" name="obG2First" required="" data-col="Second Guardian First Name" data-sum="Second parent/guardian" data-sum-break=""/></label>
+<label>Last name<input maxlength="80" name="obG2Last" required="" data-col="Second Guardian Last Name" data-join="obG2First" data-join-sep=" "/></label>
+<label>Relationship to student<select name="obG2Rel" required="" data-col="Second Guardian Relationship" data-other="#ob-g2-rel-other" data-sum="Relationship"><option value="">Select one</option><option>Mother</option><option>Father</option><option>Stepmother</option><option>Stepfather</option><option>Grandmother</option><option>Grandfather</option><option>Aunt</option><option>Uncle</option><option>Older sibling</option><option>Foster parent</option><option>Legal guardian</option><option>Other</option></select></label>
+<label hidden="" id="ob-g2-rel-other">Please describe<input maxlength="80" name="obG2RelOther" type="text"/></label>
+<label>Phone<input name="obG2Phone" required="" type="tel" data-col="Second Guardian Phone" data-sum="Phone"/></label>
+<label>Email <span class="optional">(optional)</span><input maxlength="254" name="obG2Email" type="email" data-col="Second Guardian Email" data-sum="Email"/></label>
+<label class="wide">Lives at the same address as the student?<select name="obG2Same" required="" data-col="Second Guardian Same Address" data-sum="Same address as student" data-show="#ob-g2-address" data-show-value="No"><option value="">Select one</option><option>Yes</option><option>No</option></select></label>
+</div>
+<div class="form-grid" hidden="" id="ob-g2-address">
+<label class="wide">Street address<input name="obG2Street" required="" data-col="Second Guardian Street Address" data-sum="Address"/></label>
+<label class="wide">Apartment or unit <span class="optional">(optional)</span><input name="obG2Unit" data-col="Second Guardian Apartment or Unit" data-join="obG2Street"/></label>
+<label>City<input name="obG2City" required="" data-col="Second Guardian City" data-join="obG2Street"/></label>
+<label>State<select name="obG2State" required="" data-col="Second Guardian State" data-use-value="" data-join="obG2Street"><option value="">Select state</option><option value="LA">Louisiana</option><option value="MS">Mississippi</option><option value="TX">Texas</option><option value="AR">Arkansas</option><option value="Other">Other</option></select></label>
+<label>ZIP code<input inputmode="numeric" maxlength="10" name="obG2Zip" required="" data-col="Second Guardian ZIP Code" data-join="obG2Street" data-join-sep=" "/></label>
+</div>
+</div>
+</div>
+<div class="confirm-ask" hidden="" id="ob-g2-ask">
+<p class="confirm-new">New question</p>
+<label>Include the second parent/guardian on all BRYC communications?<select name="obG2Comms" required="" data-col="Second Guardian On Communications"><option value="">Select one</option><option>Yes</option><option>No</option></select></label>
+</div>
+</section>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Household</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your application</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label>Primary language at home<select name="obLanguage" required="" data-col="Primary Language" data-sum="Primary language at home"><option value="">Select one</option><option>English</option><option>Spanish</option><option>Another language</option></select></label>
+<label>Annual household income<select name="obIncome" required="" data-col="Household Income Range" data-sum="Annual household income"><option value="">Choose one</option><option>$0–$30,000</option><option>$30,001–$48,000</option><option>$48,001–$75,000</option><option>$75,001–$110,000</option><option>$110,001+</option></select></label>
+</div>
+<div class="confirm-ask">
+<p class="confirm-new">New questions</p>
+<label>Does your household qualify for government assistance (such as SNAP, Medicaid, TANF, or housing vouchers)?<select name="obGov" required="" data-col="Government Assistance"><option value="">Select one</option><option>Yes</option><option>No</option><option>Prefer not to say</option></select></label>
+<fieldset class="field-block plain" data-required-radio="obAlum"><legend class="question-title">Has anyone in your student’s immediate family graduated from BRYC?</legend><div class="role-choice"><label class="choice"><input name="obAlum" type="radio" value="yes" data-col="Family BRYC Graduate" data-label="Yes" data-reveal="#ob-alum-names"/><span>Yes</span></label><label class="choice"><input name="obAlum" type="radio" value="no" data-col="Family BRYC Graduate" data-label="No" data-reveal="#ob-alum-names"/><span>No</span></label></div></fieldset>
+<label hidden="" id="ob-alum-names">Their name(s)<input maxlength="200" name="obAlumNames" required="" data-col="Family BRYC Graduate Names"/></label>
+</div>
+</section>
+
+<section class="confirm-card is-new">
 <h3 class="part-title">Health and support</h3>
+<p class="confirm-new">New questions</p>
 <div class="field-block"><strong>Does your student have any non-food allergies? Check all that apply.</strong><div class="checkbox-grid"><label class="checkline"><input name="obAllergies" type="checkbox" value="None" data-col="Non-Food Allergies"/> None</label><label class="checkline"><input name="obAllergies" type="checkbox" value="Bee stings or insects" data-col="Non-Food Allergies"/> Bee stings or insects</label><label class="checkline"><input name="obAllergies" type="checkbox" value="Latex" data-col="Non-Food Allergies"/> Latex</label><label class="checkline"><input name="obAllergies" type="checkbox" value="Medications" data-col="Non-Food Allergies"/> Medications</label><label class="checkline"><input name="obAllergies" type="checkbox" value="Seasonal or pollen" data-col="Non-Food Allergies"/> Seasonal or pollen</label><label class="checkline"><input name="obAllergies" type="checkbox" value="Other" data-col="Non-Food Allergies"/> Other</label></div></div>
 <div class="field-block"><strong>Does your student have any food allergies or dietary restrictions? Check all that apply.</strong><div class="checkbox-grid"><label class="checkline"><input name="obFood" type="checkbox" value="None" data-col="Food Allergies or Dietary Restrictions"/> None</label><label class="checkline"><input name="obFood" type="checkbox" value="Peanuts" data-col="Food Allergies or Dietary Restrictions"/> Peanuts</label><label class="checkline"><input name="obFood" type="checkbox" value="Tree nuts" data-col="Food Allergies or Dietary Restrictions"/> Tree nuts</label><label class="checkline"><input name="obFood" type="checkbox" value="Dairy" data-col="Food Allergies or Dietary Restrictions"/> Dairy</label><label class="checkline"><input name="obFood" type="checkbox" value="Eggs" data-col="Food Allergies or Dietary Restrictions"/> Eggs</label><label class="checkline"><input name="obFood" type="checkbox" value="Gluten or wheat" data-col="Food Allergies or Dietary Restrictions"/> Gluten or wheat</label><label class="checkline"><input name="obFood" type="checkbox" value="Shellfish" data-col="Food Allergies or Dietary Restrictions"/> Shellfish</label><label class="checkline"><input name="obFood" type="checkbox" value="Fish" data-col="Food Allergies or Dietary Restrictions"/> Fish</label><label class="checkline"><input name="obFood" type="checkbox" value="Soy" data-col="Food Allergies or Dietary Restrictions"/> Soy</label><label class="checkline"><input name="obFood" type="checkbox" value="Vegetarian" data-col="Food Allergies or Dietary Restrictions"/> Vegetarian</label><label class="checkline"><input name="obFood" type="checkbox" value="Vegan" data-col="Food Allergies or Dietary Restrictions"/> Vegan</label><label class="checkline"><input name="obFood" type="checkbox" value="Halal" data-col="Food Allergies or Dietary Restrictions"/> Halal</label><label class="checkline"><input name="obFood" type="checkbox" value="Other" data-col="Food Allergies or Dietary Restrictions"/> Other</label></div></div>
 <div class="field-block"><strong>Does your student regularly experience any activity restrictions? Check all that apply.</strong><div class="checkbox-grid"><label class="checkline"><input name="obActivity" type="checkbox" value="None" data-col="Activity Restrictions"/> None</label><label class="checkline"><input name="obActivity" type="checkbox" value="Asthma" data-col="Activity Restrictions"/> Asthma</label><label class="checkline"><input name="obActivity" type="checkbox" value="Diabetes" data-col="Activity Restrictions"/> Diabetes</label><label class="checkline"><input name="obActivity" type="checkbox" value="Seizures" data-col="Activity Restrictions"/> Seizures</label><label class="checkline"><input name="obActivity" type="checkbox" value="Heart condition" data-col="Activity Restrictions"/> Heart condition</label><label class="checkline"><input name="obActivity" type="checkbox" value="Limited mobility" data-col="Activity Restrictions"/> Limited mobility</label><label class="checkline"><input name="obActivity" type="checkbox" value="Other" data-col="Activity Restrictions"/> Other</label></div></div>
@@ -294,16 +370,16 @@
 <label>Does your student have a diagnosed neurodivergent condition such as autism, ADHD, or dyslexia?<select name="obNeuro" required="" data-col="Neurodivergent Diagnosis"><option value="">Select one</option><option>Yes</option><option>No</option><option>Prefer not to say</option></select></label>
 <div class="field-block"><strong>Does your student receive any testing accommodations at school? Check all that apply.</strong><div class="checkbox-grid"><label class="checkline"><input name="obAccom" type="checkbox" value="None" data-col="Testing Accommodations"/> None</label><label class="checkline"><input name="obAccom" type="checkbox" value="Extended time" data-col="Testing Accommodations"/> Extended time</label><label class="checkline"><input name="obAccom" type="checkbox" value="Separate setting" data-col="Testing Accommodations"/> Separate setting</label><label class="checkline"><input name="obAccom" type="checkbox" value="Questions read aloud" data-col="Testing Accommodations"/> Questions read aloud</label><label class="checkline"><input name="obAccom" type="checkbox" value="Extra breaks" data-col="Testing Accommodations"/> Extra breaks</label><label class="checkline"><input name="obAccom" type="checkbox" value="Other" data-col="Testing Accommodations"/> Other</label></div></div>
 <div class="field-block"><strong>Will any of these environmental factors negatively affect your student’s BRYC experience? Check all that apply.</strong><div class="checkbox-grid"><label class="checkline"><input name="obEnv" type="checkbox" value="None" data-col="Environmental Factors"/> None</label><label class="checkline"><input name="obEnv" type="checkbox" value="Loud noise" data-col="Environmental Factors"/> Loud noise</label><label class="checkline"><input name="obEnv" type="checkbox" value="Bright lights" data-col="Environmental Factors"/> Bright lights</label><label class="checkline"><input name="obEnv" type="checkbox" value="Crowded spaces" data-col="Environmental Factors"/> Crowded spaces</label><label class="checkline"><input name="obEnv" type="checkbox" value="Other" data-col="Environmental Factors"/> Other</label></div></div>
-<h3 class="part-title">Household</h3><div class="form-grid">
-<label>Does your household qualify for government assistance (such as SNAP, Medicaid, TANF, or housing vouchers)?<select name="obGov" required="" data-col="Government Assistance"><option value="">Select one</option><option>Yes</option><option>No</option><option>Prefer not to say</option></select></label>
-<label>Which range best describes your annual household income?<select name="obIncome" required="" data-col="Household Income Range"><option value="">Choose one</option><option>$0–$30,000</option><option>$30,001–$48,000</option><option>$48,001–$75,000</option><option>$75,001–$110,000</option><option>$110,001+</option></select></label>
-</div>
+</section>
+
+<section class="confirm-card is-new">
 <h3 class="part-title">Permissions and signature</h3>
 <label class="checkline"><input name="obPolicies" required="" type="checkbox" value="Yes" data-col="Policies Acknowledged"/> I have read and understand BRYC’s policies.</label>
 <fieldset class="field-block plain" data-required-radio="obCounseling"><legend class="question-title">Do you grant permission for your student to receive counseling services in accordance with the ethical guidelines set by the Louisiana LPC Board?</legend><div class="role-choice"><label class="choice"><input name="obCounseling" type="radio" value="yes" data-col="Counseling Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obCounseling" type="radio" value="no" data-col="Counseling Permission" data-label="No"/><span>No</span></label></div></fieldset>
 <fieldset class="field-block plain" data-required-radio="obMedia"><legend class="question-title">Do you grant permission for BRYC to use your student’s photo, audio, and video likeness and recordings?</legend><div class="role-choice"><label class="choice"><input name="obMedia" type="radio" value="yes" data-col="Media Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obMedia" type="radio" value="no" data-col="Media Permission" data-label="No"/><span>No</span></label></div></fieldset>
-<label>Guardian signature (type your first and last name)<input maxlength="120" name="obSignature" required="" data-col="Guardian Signature"/></label>
-<label class="checkline"><input name="obConfirm" required="" type="checkbox" value="Yes" data-col="Information Confirmed"/> I confirm the information I’m submitting is correct and true to the best of my knowledge.</label>
+<label>Parent/guardian signature (type your first and last name)<input maxlength="120" name="obSignature" required="" data-col="Guardian Signature"/></label>
+<label class="checkline"><input name="obConfirm" required="" type="checkbox" value="Yes" data-col="Information Confirmed"/> I reviewed the information above, and it is correct and true to the best of my knowledge.</label>
+</section>
 </div>
 </form>
 <form class="task-form" data-task="transportation" hidden="" novalidate="">

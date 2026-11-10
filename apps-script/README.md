@@ -57,6 +57,8 @@ Emails go to the account email, the household guardian email, and the guardian e
 
 **Follow-up forms** are switched on in `Portal.gs` under `PORTAL.tasks`. Income verification is on. Onboarding and transportation are built but set to `open: false` until their questions are final; families see "Opens soon." To open one, change it to `open: true`, save, and deploy a new version. If a family declines admission in onboarding, MASTER's Decision becomes Declined automatically.
 
+**Onboarding starts from what we already know.** When the form opens, it fills in the student, address, school, parents/guardians, language, and income range from the household and the application. Each of those sections shows as a short summary with an Edit button, so families only read and confirm it. A section opens on its own if a required answer is missing. New questions (birthday, T-shirt size, health, permissions, signature) are the only ones left blank. ONBOARDING_RAW gets every answer, plus **Changed From Application**, which lists the columns the family corrected or filled in so staff know what to update in MASTER. Missing ONBOARDING_RAW columns are added automatically the first time a family submits.
+
 **Open program years** are listed in both `PORTAL.openProgramYears` (Portal.gs) and `openProgramYears` (portal-config.js). Keep them the same.
 
 ### Portal setup (one time)
