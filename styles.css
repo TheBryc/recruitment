@@ -584,3 +584,21 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Three hero buttons sit in one row on desktop */
 .hero-wrap .actions{gap:10px}
 .hero-wrap .actions .btn{padding:11px 18px;min-height:46px;font-size:.95rem}
+
+/* Onboarding: each section shows what we already know, with Edit to change it */
+.confirm-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0;background:#fff}
+.confirm-card>.part-title,.confirm-head .part-title{margin:0}
+.confirm-head{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+.confirm-toggle{min-height:44px;padding:0 4px}
+.confirm-note{font-size:.88rem;color:var(--muted);margin:2px 0 0}
+.confirm-summary{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.6fr);gap:8px 18px;margin:14px 0 0}
+.confirm-summary dt{color:var(--muted);font-size:.92rem}
+.confirm-summary dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+.confirm-summary dd.empty{color:var(--muted);font-style:italic}
+.confirm-summary .sum-break,.confirm-summary .sum-break+dd{margin-top:10px;padding-top:12px;border-top:1px solid var(--line)}
+.confirm-card:not(.is-editing) .confirm-fields{display:none}
+.confirm-card.is-editing .confirm-summary{display:none}
+.confirm-card.is-editing .confirm-fields{margin-top:12px}
+.confirm-ask{margin-top:18px;padding-top:16px;border-top:1px dashed var(--field)}
+.confirm-new{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pink-text);margin:6px 0 8px}
+@media(max-width:600px){.confirm-card{padding:16px}.confirm-summary{grid-template-columns:1fr;gap:0}.confirm-summary dd{margin-bottom:10px}.confirm-summary .sum-break+dd{border-top:0;padding-top:0;margin-top:0}}

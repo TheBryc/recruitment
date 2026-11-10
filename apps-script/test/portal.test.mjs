@@ -208,6 +208,56 @@ test('onboarding: accepting completes it; declining records the decline without 
   assert.ok(sent > 0);
 });
 
+test('onboarding starts from the application and household, and records what the family changed', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  ctx.processPending();
+
+  const task = casey('load').state.students[0].tasks.find(t => t.key === 'onboarding');
+  const pre = task.prefill;
+  assert.equal(pre['Student First Name'], 'Jordan');
+  assert.equal(pre['Grade in Program Year'], '9th grade');
+  assert.equal(pre['School'], 'Thrive Academy');
+  assert.equal(pre['Household Income Range'], '$30,001–$48,000');
+  assert.equal(pre['Guardian Email'], 'casey.alt@example.com', 'the household wins over the application for guardian contact');
+  assert.equal(pre['Street Address'], '123 Main St');
+  assert.equal(pre['Second Guardian'], 'No');
+  assert.ok(!('Second Guardian First Name' in pre));
+  assert.ok(!('Student Birthday' in pre), 'new questions are never prefilled');
+
+  // Another household never sees this student's prefill.
+  const dana = as('uid-dana', 'dana@example.com'); dana('saveHousehold', {fields: household});
+  assert.equal(dana('load').state.students.length, 0);
+
+  const fields = Object.assign({}, pre, {'Accepts Admission': 'Yes, we accept', 'Student Phone': '2255550111', 'Student Birthday': '2012-05-01',
+    'Guardian Signature': 'Casey Sample', 'Not A Column': 'dropped'});
+  casey('submitTask', {studentKey, task: 'onboarding', fields});
+  const H = sheets.ONBOARDING_RAW.rows[0], row = sheets.ONBOARDING_RAW.rows[1], col = h => row[H.indexOf(h)];
+  assert.equal(col('Student First Name'), 'Jordan');
+  assert.equal(col('Student Birthday'), '2012-05-01');
+  assert.equal(col('Household Income Range'), '$30,001–$48,000');
+  assert.equal(col('Changed From Application'), 'Student Phone');
+  assert.ok(!H.includes('Not A Column'), 'unknown columns are not added');
+  assert.equal(master(2, 'Onboarding Status'), 'Complete');
+  assert.equal(casey('load').state.students[0].tasks.find(t => t.key === 'onboarding').prefill, undefined, 'no prefill once it is done');
+});
+
+test('onboarding takes the second guardian as a set from the application when the household has none', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = familyWithDraft();
+  casey('submitApplication', {studentKey, fields: Object.assign({}, appFields, {'Second Guardian': 'Yes', 'Guardian 2 First Name': 'Morgan',
+    'Guardian 2 Last Name': 'Sample', 'Guardian 2 Relationship': 'Father', 'Guardian 2 Phone': '2255550456', 'Guardian 2 Different Address': 'Yes',
+    'Guardian 2 Street Address': '9 Oak St', 'Guardian 2 City': 'Zachary', 'Guardian 2 State': 'LA', 'Guardian 2 ZIP Code': '70791'})});
+  ctx.processPending();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  const pre = casey('load').state.students[0].tasks.find(t => t.key === 'onboarding').prefill;
+  assert.equal(pre['Second Guardian'], 'Yes');
+  assert.equal(pre['Second Guardian First Name'], 'Morgan');
+  assert.equal(pre['Second Guardian Same Address'], 'No', '"different address: yes" becomes "same address: no"');
+  assert.equal(pre['Second Guardian City'], 'Zachary');
+});
+
 test('siblings live under one household with their own statuses', () => {
   const {casey} = submitted();
   const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});

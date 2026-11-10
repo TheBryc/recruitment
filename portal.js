@@ -549,11 +549,124 @@ function renderTask() {
     if ($('#ob-decline')) $('#ob-decline').hidden = true;
     const prefill = {incGuardianFirst: 'Guardian First Name', incGuardianLast: 'Guardian Last Name', incGuardianEmail: 'Guardian Email', incGuardianPhone: 'Guardian Phone'};
     Object.entries(prefill).forEach(([name, col]) => { if (hh[col]) setField(f, name, hh[col]); });
+    if (key === 'onboarding') startOnboarding(f, (student.tasks || []).find(t => t.key === 'onboarding')?.prefill || {});
   });
   $('#task-submit').disabled = false;
 }
 
+/* ---------- onboarding: confirm what we know, ask only what's new ---------- */
+
+// Fills the form from the application, then shows each prefilled section as a
+// short summary with an Edit button. Sections with missing answers open on their own.
+function startOnboarding(form, prefill) {
+  Object.entries(prefill).forEach(([col, value]) => {
+    const control = form.querySelector(`[data-col="${CSS.escape(col)}"]`);
+    if (control) setField(form, control.name, value);
+  });
+  syncReveals(form); syncShows(form); syncSecondGuardianAsk(form);
+  form.querySelectorAll('[data-confirm]').forEach(card => {
+    const known = [...card.querySelectorAll('.confirm-fields [data-col]')].some(c => prefill[c.dataset.col]);
+    const gap = !!missingIn(card), note = card.querySelector('.confirm-note');
+    note.hidden = !known;
+    note.textContent = gap ? 'From your application. Please fill in what’s missing.' : 'From your application';
+    card.classList.toggle('has-prefill', known);
+    setEditing(card, !known || gap);
+  });
+}
+
+// A select with data-show reveals its target when data-show-value is chosen.
+function syncShows(root) {
+  root.querySelectorAll('select[data-show]').forEach(sel => { const t = $(sel.dataset.show); if (t) t.hidden = sel.value !== sel.dataset.showValue; });
+}
+
+function syncSecondGuardianAsk(form) {
+  const ask = $('#ob-g2-ask'); if (ask) ask.hidden = form.elements.obSecond?.value !== 'yes';
+}
+
+function setEditing(card, on) {
+  card.classList.toggle('is-editing', on);
+  const toggle = card.querySelector('.confirm-toggle');
+  toggle.textContent = on ? 'Done' : 'Edit';
+  toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+  toggle.hidden = on && !card.classList.contains('has-prefill');
+  if (!on) renderSummary(card);
+}
+
+// Hidden inside the section itself (the whole form may still be hidden until they accept).
+function hiddenIn(node, card) {
+  for (let n = node; n && n !== card; n = n.parentElement) if (n.hidden) return true;
+  return false;
+}
+
+// First required answer in a section's prefilled part that is still blank.
+function missingIn(card) {
+  const fields = card.querySelector('.confirm-fields');
+  for (const c of fields.querySelectorAll('input,select,textarea')) {
+    if (hiddenIn(c, card) || c.type === 'radio' || c.type === 'checkbox' || !c.required) continue;
+    if (!c.value.trim()) return c;
+  }
+  for (const group of fields.querySelectorAll('[data-required-radio]')) {
+    if (!hiddenIn(group, card) && !card.closest('form').elements.namedItem(group.dataset.requiredRadio).value) return group.querySelector('input');
+  }
+  return null;
+}
+
+function shownValue(el) {
+  const form = el.form;
+  if (el.type === 'radio') { const on = [...form.elements.namedItem(el.name)].find(r => r.checked); return on ? (on.dataset.label || on.value) : ''; }
+  if (el.tagName === 'SELECT') {
+    if (!el.value) return '';
+    if (el.dataset.other && el.value === (el.dataset.otherValue || 'Other')) { const t = $(el.dataset.other)?.querySelector('input')?.value.trim(); if (t) return t; }
+    return el.selectedOptions[0].text;
+  }
+  return el.value.trim();
+}
+
+function renderSummary(card) {
+  const dl = card.querySelector('.confirm-summary'), rows = {};
+  dl.replaceChildren();
+  card.querySelectorAll('.confirm-fields [data-sum], .confirm-fields [data-join]').forEach(c => {
+    // A radio with data-sum is only listed when it's the one picked ("Second parent/guardian: No").
+    if (hiddenIn(c, card) || (c.type === 'radio' && !c.checked)) return;
+    const value = shownValue(c);
+    if (c.dataset.join) {
+      const dd = rows[c.dataset.join];
+      if (dd && value) dd.textContent = dd.textContent ? dd.textContent + (c.dataset.joinSep || ', ') + value : value;
+      return;
+    }
+    rows[c.name] = el('dd');
+    rows[c.name].textContent = value;
+    dl.append(el('dt', {text: c.dataset.sum, class: 'sumBreak' in c.dataset ? 'sum-break' : false}), rows[c.name]);
+  });
+  dl.querySelectorAll('dd').forEach(dd => { if (!dd.textContent) { dd.textContent = 'Not provided'; dd.classList.add('empty'); } });
+}
+
+function initOnboarding() {
+  const form = $('.task-form[data-task="onboarding"]'); if (!form) return;
+  form.querySelectorAll('[data-confirm]').forEach(card => card.querySelector('.confirm-toggle').addEventListener('click', () => {
+    if (!card.classList.contains('is-editing')) {
+      setEditing(card, true);
+      card.querySelector('.confirm-fields input:not([type=radio]), .confirm-fields select')?.focus({preventScroll: true});
+      return;
+    }
+    const gap = missingIn(card);
+    if (gap) { gap.focus(); gap.scrollIntoView({behavior: 'smooth', block: 'center'}); return; }
+    setEditing(card, false);
+    card.querySelector('.confirm-toggle').focus({preventScroll: true});
+  }));
+  form.addEventListener('change', e => {
+    if (e.target.matches('select[data-show]')) syncShows(form);
+    if (e.target.name === 'obSecond') syncSecondGuardianAsk(form);
+  });
+}
+
+// Open any section that holds an unanswered question so the family can see it.
+function openFlagged(form) {
+  form.querySelectorAll('[data-confirm]:not(.is-editing)').forEach(card => { if (card.querySelector('.confirm-fields [aria-invalid]')) setEditing(card, true); });
+}
+
 function initTasks() {
+  initOnboarding();
   // A checkbox with data-reveal-check shows its target while checked.
   $$('[data-reveal-check]').forEach(c => c.addEventListener('change', () => { const t = $(c.dataset.revealCheck); if (t) t.hidden = !c.checked; }));
   // Declining admission skips the rest of onboarding and asks why.
@@ -565,6 +678,7 @@ function initTasks() {
     if (!taskCtx) return;
     const form = $(`.task-form[data-task="${taskCtx.key}"]`), msg = $('#task-message'), b = $('#task-submit');
     const first = forms().formErrors(form);
+    openFlagged(form);
     if (first) { msg.textContent = 'Please fix the highlighted questions.'; first.focus({preventScroll: true}); first.scrollIntoView({behavior: 'smooth', block: 'center'}); return; }
     busy(b, true, 'Submitting…'); msg.textContent = '';
     try {

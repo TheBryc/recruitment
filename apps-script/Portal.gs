@@ -36,6 +36,51 @@ const PORTAL = {
     income: { sheet: 'INCOME_RAW', open: true, title: 'Verify household income', uploadColumns: ['Document 1', 'Document 2'] }
   },
 
+  // Onboarding starts from what the family already told us. Each pair is
+  // [onboarding column, where it comes from]. Address and guardian answers
+  // come from the household first (the family keeps it current), then the
+  // application. Everything else comes from the application.
+  onboardingPrefill: [
+    ['Student First Name', 'Student First Name'], ['Student Last Name', 'Student Last Name'],
+    ['Student Gender', 'Student Gender Identity'], ['Student Email', 'Student Email'], ['Student Phone', 'Student Phone'],
+    ['Street Address', 'Street Address', 'household'], ['Apartment or Unit', 'Apartment or Unit', 'household'],
+    ['City', 'City', 'household'], ['State', 'State', 'household'], ['ZIP Code', 'ZIP Code', 'household'],
+    ['Parish', 'Parish or County', 'household'],
+    ['Grade in Program Year', 'Grade in Program Year'], ['School', 'School'],
+    ['Guardian First Name', 'Guardian First Name', 'household'], ['Guardian Last Name', 'Guardian Last Name', 'household'],
+    ['Guardian Relationship', 'Guardian Relationship', 'household'], ['Guardian Phone', 'Guardian Phone', 'household'],
+    ['Guardian Email', 'Guardian Email', 'household'],
+    ['Second Guardian', 'Second Guardian', 'household'],
+    ['Second Guardian First Name', 'Guardian 2 First Name', 'household'], ['Second Guardian Last Name', 'Guardian 2 Last Name', 'household'],
+    ['Second Guardian Relationship', 'Guardian 2 Relationship', 'household'], ['Second Guardian Phone', 'Guardian 2 Phone', 'household'],
+    ['Second Guardian Email', 'Guardian 2 Email', 'household'],
+    ['Second Guardian Same Address', 'Guardian 2 Different Address', 'household'],
+    ['Second Guardian Street Address', 'Guardian 2 Street Address', 'household'],
+    ['Second Guardian Apartment or Unit', 'Guardian 2 Apartment or Unit', 'household'],
+    ['Second Guardian City', 'Guardian 2 City', 'household'], ['Second Guardian State', 'Guardian 2 State', 'household'],
+    ['Second Guardian ZIP Code', 'Guardian 2 ZIP Code', 'household'],
+    ['Primary Language', 'Home Language'], ['Household Income Range', 'Household Income Range'],
+    ['Family BRYC Graduate Names', 'Relative Names']
+  ],
+
+  // Every column the onboarding form can send. Anything else is dropped, and
+  // missing columns are added to ONBOARDING_RAW the first time they're used.
+  onboardingColumns: ['Accepts Admission', 'Decline Reason',
+    'Student First Name', 'Student Last Name', 'Student Gender', 'Student Email', 'Student Phone',
+    'Student Preferred First Name', 'Student Pronouns', 'Student Race / Ethnicity', 'Race / Ethnicity Description',
+    'Student Birthday', 'T-Shirt Size',
+    'Street Address', 'Apartment or Unit', 'City', 'State', 'ZIP Code', 'Parish',
+    'Grade in Program Year', 'School', 'School District', 'School Parish', 'Platform Access Permission',
+    'Guardian First Name', 'Guardian Last Name', 'Guardian Relationship', 'Guardian Phone', 'Guardian Email',
+    'Second Guardian', 'Second Guardian First Name', 'Second Guardian Last Name', 'Second Guardian Relationship',
+    'Second Guardian Phone', 'Second Guardian Email', 'Second Guardian Same Address', 'Second Guardian Street Address',
+    'Second Guardian Apartment or Unit', 'Second Guardian City', 'Second Guardian State', 'Second Guardian ZIP Code',
+    'Second Guardian On Communications',
+    'Primary Language', 'Household Income Range', 'Government Assistance', 'Family BRYC Graduate', 'Family BRYC Graduate Names',
+    'Non-Food Allergies', 'Food Allergies or Dietary Restrictions', 'Activity Restrictions', 'Prescription Medications',
+    'Approved Medications', 'Injury or Illness', 'Neurodivergent Diagnosis', 'Testing Accommodations', 'Environmental Factors',
+    'Policies Acknowledged', 'Counseling Permission', 'Media Permission', 'Guardian Signature', 'Information Confirmed'],
+
   headers: {
     HOUSEHOLDS: ['Household ID', 'Account UID', 'Account Email', 'Account Holder', 'Guardian First Name', 'Guardian Last Name',
       'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'Street Address', 'Apartment or Unit', 'City', 'State',
@@ -236,11 +281,21 @@ function portalSubmitTask(ss, user, payload) {
   if (!item) throw new PortalError('This form is not available for this student.');
   if (item.done) throw new PortalError('This form was already submitted.');
 
-  const fields = cleanPayloadFields(payload.fields);
+  let fields = cleanPayloadFields(payload.fields);
+  if (taskKey === 'onboarding') {
+    fields = cleanPortalFields(fields, PORTAL.onboardingColumns);
+    // Tell staff what the family corrected, so they can update MASTER.
+    if (!/^no/i.test(cleanValue(fields['Accepts Admission']))) fields['Changed From Application'] = changedFromApplication(item.prefill, fields);
+  }
   const now = new Date();
   Object.assign(fields, { Timestamp: now, 'BRYC ID': student.brycId, 'Household ID': household['Household ID'], 'Student Key': student.studentKey });
 
   withLock(() => {
+    if (taskKey === 'onboarding') {
+      ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
+        .concat(PORTAL.onboardingColumns, ['Changed From Application']));
+    }
+
     (payload.files || [])
       .filter(file => (task.uploadColumns || []).includes(file.column))
       .forEach(file => {
@@ -298,12 +353,12 @@ function portalState(ss, user) {
   const master = readObjects(ss.getSheetByName(CONFIG.masterSheet));
   const labels = familyLabels(ss);
 
-  state.students = drafts.map(d => studentView(d, master.find(m => !isBlank(d['BRYC ID']) && m['BRYC ID'] === d['BRYC ID']), labels, ss));
+  state.students = drafts.map(d => studentView(d, master.find(m => !isBlank(d['BRYC ID']) && m['BRYC ID'] === d['BRYC ID']), labels, ss, household));
   return state;
 }
 
 
-function studentView(draft, master, labels, ss) {
+function studentView(draft, master, labels, ss, household) {
 
   let answers = {};
   try { answers = JSON.parse(draft.Draft || '{}'); } catch (e) { answers = {}; }
@@ -337,21 +392,24 @@ function studentView(draft, master, labels, ss) {
   if (isReleased(master['Decision Released']) && decision) {
     view.stage = 'decision';
     view.decision = labels.decision[decision] || decision;
-    if (/admitted/i.test(decision)) view.tasks = studentTasks(master, view, ss);
+    if (/admitted/i.test(decision)) view.tasks = studentTasks(master, view, ss, household);
   }
 
   return view;
 }
 
 
-function studentTasks(master, view, ss) {
+function studentTasks(master, view, ss, household) {
 
   const has = taskKey => readObjects(portalSheet(ss, PORTAL.tasks[taskKey].sheet)).some(r => r['Student Key'] === view.studentKey);
   const tasks = [];
 
   const onboarding = normalizeText(master['Onboarding Status']);
-  tasks.push({ key: 'onboarding', title: PORTAL.tasks.onboarding.title, open: PORTAL.tasks.onboarding.open,
-    done: onboarding.includes('complete') || has('onboarding'), status: onboarding.includes('complete') ? 'Complete' : '' });
+  const onboardingTask = { key: 'onboarding', title: PORTAL.tasks.onboarding.title, open: PORTAL.tasks.onboarding.open,
+    done: onboarding.includes('complete') || has('onboarding'), status: onboarding.includes('complete') ? 'Complete' : '' };
+  // Only sent while the form is open and unfinished, and only to this household.
+  if (onboardingTask.open && !onboardingTask.done) onboardingTask.prefill = onboardingPrefill(ss, view.studentKey, household);
+  tasks.push(onboardingTask);
 
   tasks.push({ key: 'transportation', title: PORTAL.tasks.transportation.title, open: PORTAL.tasks.transportation.open,
     done: has('transportation'), status: '' });
@@ -377,6 +435,53 @@ function familyLabels(ss) {
     if (!isBlank(r.Decision)) decision[cleanValue(r.Decision)] = cleanValue(r['Family Sees (Decision)']);
   });
   return { status: status, decision: decision };
+}
+
+
+// What we already know about this student, keyed by onboarding column.
+function onboardingPrefill(ss, studentKey, household) {
+
+  const apps = readObjects(ss.getSheetByName(CONFIG.forms.application.sheet)).filter(r => cleanValue(r['Student Key']) === studentKey);
+  const app = apps[apps.length - 1] || {};
+  const hh = household || {};
+  // The second guardian is taken as a set from one place, never mixed.
+  const g2 = !isBlank(hh['Guardian 2 First Name']) ? hh : app;
+  const out = {};
+
+  PORTAL.onboardingPrefill.forEach(([column, source, prefer]) => {
+    let value;
+    if (/^(Guardian 2|Second Guardian$)/.test(source)) value = cleanValue(g2[source]);
+    else if (prefer === 'household') value = cleanValue(hh[source]) || cleanValue(app[source]);
+    else value = cleanValue(app[source]);
+    if (value) out[column] = value;
+  });
+
+  // "Different address?" on the application becomes "Same address?" here.
+  if (out['Second Guardian Same Address']) out['Second Guardian Same Address'] = /^y/i.test(out['Second Guardian Same Address']) ? 'No' : 'Yes';
+  if (out['Second Guardian First Name']) out['Second Guardian'] = 'Yes';
+  else if (Object.keys(out).length) out['Second Guardian'] = 'No';
+  if (out['Second Guardian'] === 'No') Object.keys(out).filter(c => /^Second Guardian ./.test(c)).forEach(c => delete out[c]);
+  return out;
+}
+
+
+// Prefilled onboarding columns the family changed or filled in, so staff know what to update.
+function changedFromApplication(prefill, fields) {
+
+  const same = (a, b) => normalizeText(a).replace(/^other:\s*/, '') === normalizeText(b).replace(/^other:\s*/, '');
+  return PORTAL.onboardingPrefill.map(p => p[0]).filter(c => !same((prefill || {})[c], fields[c])).join('; ');
+}
+
+
+// Adds any missing headers in one write.
+function ensureColumns(sheet, headers) {
+
+  const width = Math.max(sheet.getLastColumn(), 1);
+  const existing = sheet.getRange(1, 1, 1, width).getDisplayValues()[0].map(normalizeHeader);
+  const missing = headers.filter(h => !existing.includes(normalizeHeader(h)));
+  if (!missing.length) return;
+  const start = existing.filter(Boolean).length ? sheet.getLastColumn() + 1 : 1;
+  sheet.getRange(1, start, 1, missing.length).setValues([missing]);
 }
 
 
