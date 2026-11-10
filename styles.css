@@ -245,7 +245,10 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Footer */
 .site-footer{background:var(--footer);padding:56px 0 36px;font-size:.9rem;color:#b8b6c9}
 .footer-inner{display:flex;justify-content:space-between;align-items:flex-start;gap:32px;flex-wrap:wrap}
-.footer-brand strong{display:block;color:#fff;font-family:var(--display);text-transform:uppercase;font-weight:800;font-size:1.2rem;letter-spacing:.02em;margin-bottom:2px}
+/* Footer: the same logo and ADMISSIONS label as the header, shown in white on the dark footer. */
+.footer-brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:#fff}
+.footer-logo{width:128px;height:auto;display:block;filter:brightness(0) invert(1)}
+.footer-sub{font-size:.68rem;letter-spacing:.2em;font-weight:700;color:#b8b6c9;padding-left:14px;border-left:1px solid rgba(255,255,255,.28)}
 .footer-links{display:flex;gap:6px 22px;flex-wrap:wrap}
 .footer-links a{color:#b8b6c9;font-weight:600;font-size:.9rem;text-decoration:none}
 .footer-links a:hover{color:#fff;text-decoration:underline}
@@ -571,3 +574,5 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .stage::before{background:var(--stage,var(--pink));color:var(--stage-ink,#fff)}
 .stage .stage-grade{color:var(--stage-text,var(--pink-text))}
 .stage li::marker{color:var(--stage-text,var(--pink))}
+/* Leave room under the footer so the Back to top button never covers a link. */
+.site-footer{padding-bottom:88px}
