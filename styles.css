@@ -576,3 +576,4 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .basics-more{margin:18px 0 0;color:var(--ink-2)}
 @media(max-width:900px){.basics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.basics{gap:10px}.basics li{padding:16px 14px 18px}.basics li>span:last-child{font-size:.86rem}}
+.basics li>span:last-child b{color:var(--ink);font-weight:700}

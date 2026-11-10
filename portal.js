@@ -257,14 +257,14 @@ function renderHousehold(hh) {
   $('#edit-household').hidden = !hh || editing;
   form.querySelector('[data-cancel-household]').hidden = !hh;
   if (!hh) {
-    // The account holder is the parent or guardian, so their email is the account's.
+    // The account holder is the parent/guardian, so their email is the account's.
     if (!form.elements.hhEmail.value && user) form.elements.hhEmail.value = user.email;
     return;
   }
   const address = [hh['Street Address'], hh['Apartment or Unit']].filter(Boolean).join(', ');
   const place = [hh['City'], [hh['State'], hh['ZIP Code']].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const rows = [
-    ['Parent or guardian', `${hh['Guardian First Name'] || ''} ${hh['Guardian Last Name'] || ''}`.trim() + (hh['Guardian Relationship'] ? ` (${String(hh['Guardian Relationship']).replace(/^Other:\s*/, '')})` : '')],
+    ['Parent/guardian', `${hh['Guardian First Name'] || ''} ${hh['Guardian Last Name'] || ''}`.trim() + (hh['Guardian Relationship'] ? ` (${String(hh['Guardian Relationship']).replace(/^Other:\s*/, '')})` : '')],
     ['Phone', hh['Guardian Phone']], ['Email', hh['Guardian Email']],
     ['Home address', [address, place].filter(Boolean).join(', ')], ['Parish or county', hh['Parish or County']]
   ];
@@ -273,11 +273,11 @@ function renderHousehold(hh) {
     const diff = String(hh['Guardian 2 Different Address'] || '').toLowerCase() === 'yes';
     const g2Street = [hh['Guardian 2 Street Address'], hh['Guardian 2 Apartment or Unit']].filter(Boolean).join(', ');
     const g2Place = [hh['Guardian 2 City'], [hh['Guardian 2 State'], hh['Guardian 2 ZIP Code']].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    rows.push(['Second parent or guardian', `${hh['Guardian 2 First Name'] || ''} ${hh['Guardian 2 Last Name'] || ''}`.trim() + (rel ? ` (${rel})` : '')],
+    rows.push(['Second parent/guardian', `${hh['Guardian 2 First Name'] || ''} ${hh['Guardian 2 Last Name'] || ''}`.trim() + (rel ? ` (${rel})` : '')],
       ['Phone', hh['Guardian 2 Phone']], ['Email', hh['Guardian 2 Email']],
       ['Address', diff ? [g2Street, g2Place].filter(Boolean).join(', ') : 'Same as home address']);
   }
-  summary.replaceChildren(...rows.filter(r => r[1]).flatMap(([k, v]) => [el('dt', {class: k === 'Second parent or guardian' ? 'g2-start' : false, text: k}), el('dd', {text: String(v)})]));
+  summary.replaceChildren(...rows.filter(r => r[1]).flatMap(([k, v]) => [el('dt', {class: k === 'Second parent/guardian' ? 'g2-start' : false, text: k}), el('dd', {text: String(v)})]));
   let add = $('#hh-summary-add-g2');
   if (!add) {
     add = el('button', {class: 'btn btn-secondary add-g2', id: 'hh-summary-add-g2', type: 'button', text: '+ Add second guardian', onclick: () => {
