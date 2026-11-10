@@ -76,7 +76,7 @@ a{color:inherit}
 .hero-stage{position:relative;max-width:1440px;margin:0 auto;height:clamp(540px,calc(100vh - 140px),780px);border-radius:0 0 24px 24px;overflow:hidden;background:#161616 url("media/hero-poster.jpg") center/cover no-repeat}
 .hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .hero-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.18) 0%,rgba(0,0,0,.08) 30%,rgba(0,0,0,.45) 62%,rgba(0,0,0,.82) 100%),linear-gradient(90deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 55%)}
-.hero-overlay{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:48px;align-items:end;padding:48px max(32px,calc((100% - var(--wrap))/2 + 24px)) 52px}
+.hero-overlay{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:end;padding:48px max(32px,calc((100% - var(--wrap))/2 + 24px)) 52px}
 .hero-wrap .kicker{display:block;color:#fff;opacity:1;margin-bottom:16px;text-shadow:0 1px 8px rgba(0,0,0,.5)}
 /* Each line of the headline gets its own raspberry block that hugs the words, even when a line wraps. */
 .hero-stamp{margin:0;font-size:clamp(2.8rem,4.7vw,4.25rem);line-height:1.16;color:#fff}
@@ -581,3 +581,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .basics-list{margin:0 0 8px;padding-left:1.1em}
 .basics-list li{margin:3px 0}
 .basics-list li::marker{color:var(--pink)}
+/* Three hero buttons sit in one row on desktop */
+.hero-wrap .actions{gap:10px}
+.hero-wrap .actions .btn{padding:11px 18px;min-height:46px;font-size:.95rem}
