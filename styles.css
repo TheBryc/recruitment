@@ -112,9 +112,6 @@ a{color:inherit}
 .path:hover .path-arrow,.path:focus-visible .path-arrow{background:var(--pink);border-color:var(--pink);color:#fff;transform:rotate(-45deg)}
 
 /* Home: mission */
-.mission{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:-.015em;font-size:clamp(1.5rem,2.7vw,2.4rem);line-height:1.06;max-width:1050px;margin:0 0 28px}
-.mission .hl{color:var(--pink)}
-.mission-sub{color:var(--on-dark-muted);font-size:1.1rem;max-width:620px}
 
 /* Home: What BRYC offers (journey, paths, support) */
 
@@ -164,7 +161,6 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .inner{max-width:var(--wrap);margin:0 auto;padding:72px 24px 96px}
 .back-link{display:inline-flex;align-items:center;gap:8px;margin:-36px 0 28px;padding:8px 0;border:0;background:none;color:var(--on-dark-muted);font-weight:600;font-size:.95rem}
 .back-link:hover{color:var(--on-dark)}
-.mission-sub strong{color:var(--on-dark)}
 .page-head{max-width:900px;font-size:clamp(2.1rem,4.2vw,3.5rem)}
 .inner>.lead{margin-bottom:44px}
 
