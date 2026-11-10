@@ -392,7 +392,8 @@ function studentView(draft, master, labels, ss, household) {
   if (isReleased(master['Decision Released']) && decision) {
     view.stage = 'decision';
     view.decision = labels.decision[decision] || decision;
-    if (/admitted/i.test(decision)) view.tasks = studentTasks(master, view, ss, household);
+    // Only an exact "Admitted" unlocks next steps (never "Not admitted").
+    if (isAdmitted(decision)) view.tasks = studentTasks(master, view, ss, household);
   }
 
   return view;
@@ -485,6 +486,12 @@ function ensureColumns(sheet, headers) {
 }
 
 
+function isAdmitted(decision) {
+
+  return normalizeText(decision) === 'admitted';
+}
+
+
 function isReleased(value) {
 
   return value === true || /^(true|yes|released)$/i.test(cleanValue(value));
@@ -557,7 +564,7 @@ function sendStatusEmails(ss) {
       if (sent) master.getRange(row, map[normalizeHeader('Family Notified')]).setValue(key);
     }
 
-    const incomeAsked = released && /admitted/i.test(decision) && normalizeText(m['Income Verification Required']) === 'yes';
+    const incomeAsked = released && isAdmitted(decision) && normalizeText(m['Income Verification Required']) === 'yes';
     if (incomeAsked && isBlank(m['Income Request Sent']) && PORTAL.tasks.income.open) {
       const sent = sendFamilyEmail(ss, 'Income verification request', to, Object.assign({}, base, {
         subject: `One more step for ${first}: income verification`,

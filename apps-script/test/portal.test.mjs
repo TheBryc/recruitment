@@ -258,6 +258,18 @@ test('onboarding takes the second guardian as a set from the application when th
   assert.equal(pre['Second Guardian City'], 'Zachary');
 });
 
+test('only an exact "Admitted" decision unlocks onboarding', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Not admitted'); setMaster(2, 'Decision Released', true);
+  assert.deepEqual(casey('load').state.students[0].tasks, []);
+  assert.match(casey('submitTask', {studentKey, task: 'onboarding', fields: {'Accepts Admission': 'Yes'}}).error, /not available/);
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', '');
+  assert.deepEqual(casey('load').state.students[0].tasks, [], 'not until the decision is released');
+  setMaster(2, 'Decision Released', true);
+  assert.ok(casey('load').state.students[0].tasks.some(t => t.key === 'onboarding'));
+});
+
 test('siblings live under one household with their own statuses', () => {
   const {casey} = submitted();
   const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});
