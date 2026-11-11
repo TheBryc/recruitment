@@ -34,7 +34,7 @@ const PORTAL = {
   // Follow-up forms. A closed form shows as "opens soon" in the portal.
   tasks: {
     onboarding: { sheet: 'ONBOARDING_RAW', open: true, title: 'Accept your spot and complete onboarding' },
-    transportation: { sheet: 'TRANSPORTATION_RAW', open: false, title: 'Reserve transportation' },
+    transportation: { sheet: 'TRANSPORTATION_RAW', open: true, title: 'Reserve transportation' },
     income: { sheet: 'INCOME_RAW', open: true, title: 'Verify household income', uploadColumns: ['Document 1', 'Document 2'] }
   },
 
@@ -82,6 +82,11 @@ const PORTAL = {
     'Non-Food Allergies', 'Food Allergies or Dietary Restrictions', 'Activity Restrictions', 'Prescription Medications',
     'Approved Medications', 'Injury or Illness', 'Neurodivergent Diagnosis', 'Testing Accommodations', 'Environmental Factors',
     'Policies Acknowledged', 'Counseling Permission', 'Media Permission', 'Guardian Signature', 'Information Confirmed'],
+
+  // Every column the transportation form can send, plus what the script adds.
+  transportationColumns: ['Needs BRYC Transportation', 'Student First Name', 'Student Last Name', 'Grade in Program Year', 'School',
+    'Guardian First Name', 'Guardian Last Name', 'Guardian Phone', 'Guardian Email', 'Authorization Agreed', 'Guardian Signature', 'Notes'],
+  transportationAdded: ['School Has Route', 'Authorization Period'],
 
   headers: {
     HOUSEHOLDS: ['Household ID', 'Account UID', 'Account Email', 'Account Holder', 'Guardian First Name', 'Guardian Last Name',
@@ -282,6 +287,7 @@ function portalSubmitTask(ss, user, payload) {
   const item = student && (student.tasks || []).find(t => t.key === taskKey);
   if (!item) throw new PortalError('This form is not available for this student.');
   if (item.done) throw new PortalError('This form was already submitted.');
+  if (item.open === false) throw new PortalError('This form is not open yet.');
 
   let fields = cleanPayloadFields(payload.fields);
   if (taskKey === 'onboarding') {
@@ -293,6 +299,20 @@ function portalSubmitTask(ss, user, payload) {
     // Tell staff what the family corrected, so they can update MASTER.
     if (!/^no/i.test(cleanValue(fields['Accepts Admission']))) fields['Changed From Application'] = changedFromApplication(item.prefill, fields);
   }
+  if (taskKey === 'transportation') {
+    fields = cleanPortalFields(fields, PORTAL.transportationColumns);
+    const riding = /^yes/i.test(cleanValue(fields['Needs BRYC Transportation']));
+    if (riding) {
+      if (isBlank(fields['Authorization Agreed']) || isBlank(fields['Guardian Signature'])) {
+        throw new PortalError('Please agree to the Authorization to Transport and sign before submitting.');
+      }
+      const school = schoolInfo(ss)[normalizeText(fields['School'])];
+      fields['School Has Route'] = school && school.route ? 'Yes' : 'No';
+      fields['Authorization Period'] = authorizationPeriod(student.programYear);
+    } else {
+      delete fields['Authorization Agreed'];
+    }
+  }
   const now = new Date();
   Object.assign(fields, { Timestamp: now, 'BRYC ID': student.brycId, 'Household ID': household['Household ID'], 'Student Key': student.studentKey });
 
@@ -300,6 +320,10 @@ function portalSubmitTask(ss, user, payload) {
     if (taskKey === 'onboarding') {
       ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
         .concat(PORTAL.onboardingColumns, ['Changed From Application']));
+    }
+    if (taskKey === 'transportation') {
+      ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
+        .concat(PORTAL.transportationColumns, PORTAL.transportationAdded));
     }
 
     (payload.files || [])
@@ -333,8 +357,7 @@ function sendTaskConfirmation(ss, user, household, student, taskKey, fields) {
             'If there is anything else we need from you, it will show in your BRYC portal and we will email you.'] },
     income: { type: 'Income verification received', subject: `We received your income verification for ${first}`,
       lines: ['Thank you for sending your income verification. Our team will review it and let you know if we need anything else.'] },
-    transportation: { type: 'Transportation received', subject: `We received ${first}'s transportation form`,
-      lines: [`Thank you for completing ${first}'s transportation form. We will share pickup details before the program starts.`] }
+    transportation: transportationMessage(first, fields)
   };
   const msg = messages[taskKey];
   if (!msg) return;
@@ -366,6 +389,13 @@ function updateMasterAfterTask(ss, brycId, taskKey, fields, now) {
   }
 
   if (taskKey === 'income') setMasterValue(master, row, headers, 'Income Verification Status', 'Submitted');
+
+  if (taskKey === 'transportation') {
+    ensureHeader(master, 'Transportation');
+    const riding = /^yes/i.test(cleanValue(fields['Needs BRYC Transportation']));
+    const value = !riding ? 'Not riding' : (fields['School Has Route'] === 'Yes' ? 'Riding from ' : 'Requested route from ') + cleanValue(fields['School']);
+    setMasterValue(master, row, getHeaderMap(master), 'Transportation', value);
+  }
 
   setMasterValue(master, row, headers, 'Last Activity', now);
   recalculateOperationalFields(master, row);
@@ -451,8 +481,16 @@ function studentTasks(master, view, ss, household) {
   }
   tasks.push(onboardingTask);
 
-  tasks.push({ key: 'transportation', title: PORTAL.tasks.transportation.title, open: PORTAL.tasks.transportation.open,
-    done: has('transportation'), status: '' });
+  // Transportation opens once onboarding is done, so it starts from the confirmed answers.
+  const transportationTask = { key: 'transportation', title: PORTAL.tasks.transportation.title,
+    open: PORTAL.tasks.transportation.open && onboardingTask.done, done: has('transportation'), status: '' };
+  if (PORTAL.tasks.transportation.open && !onboardingTask.done) transportationTask.waiting = 'After onboarding';
+  if (transportationTask.open && !transportationTask.done) {
+    transportationTask.prefill = transportationPrefill(ss, view.studentKey, household);
+    transportationTask.schools = Object.values(schoolInfo(ss)).map(s => [s.name, s.route ? 1 : 0]);
+    transportationTask.period = authorizationPeriod(view.programYear);
+  }
+  tasks.push(transportationTask);
 
   if (normalizeText(master['Income Verification Required']) === 'yes') {
     const income = cleanValue(master['Income Verification Status']);
@@ -521,9 +559,49 @@ function schoolInfo(ss) {
   const out = {};
   readObjects(ss.getSheetByName(PORTAL.schoolsSheet)).forEach(r => {
     const name = cleanValue(r.School);
-    if (name) out[normalizeText(name)] = { name: name, district: cleanValue(r['School District']), parish: cleanValue(r['School Parish']) };
+    if (name) out[normalizeText(name)] = { name: name, district: cleanValue(r['School District']), parish: cleanValue(r['School Parish']),
+      route: /^y/i.test(cleanValue(r['Transportation Route'])) };
   });
   return out;
+}
+
+
+// What we know for the transportation form: the onboarding answers if they're in, otherwise the application.
+function transportationPrefill(ss, studentKey, household) {
+
+  const known = onboardingPrefill(ss, studentKey, household);
+  const rows = readObjects(ss.getSheetByName(PORTAL.tasks.onboarding.sheet)).filter(r => cleanValue(r['Student Key']) === studentKey);
+  const onboarding = rows[rows.length - 1] || {};
+  const out = {};
+  ['Student First Name', 'Student Last Name', 'Grade in Program Year', 'School', 'Guardian First Name', 'Guardian Last Name',
+    'Guardian Phone', 'Guardian Email'].forEach(c => {
+    const value = cleanValue(onboarding[c]) || cleanValue(known[c]);
+    if (value) out[c] = value;
+  });
+  return out;
+}
+
+
+// "2027-2028" → "August 1, 2027 – July 31, 2028"
+function authorizationPeriod(programYear) {
+
+  const m = /^(\d{4})-(\d{4})$/.exec(cleanValue(programYear));
+  return m ? `August 1, ${m[1]} – July 31, ${m[2]}` : '';
+}
+
+
+function transportationMessage(first, fields) {
+
+  if (!/^yes/i.test(cleanValue(fields['Needs BRYC Transportation']))) {
+    return { type: 'Transportation received', subject: `We received ${first}'s transportation form`,
+      lines: [`Thank you for letting us know ${first} won't need BRYC transportation. If that changes, reply to this email and we will help.`] };
+  }
+  const lines = fields['School Has Route'] === 'Yes'
+    ? [`Thank you for signing ${first} up for BRYC transportation from ${fields['School']}.`,
+       `We'll add ${fields['Guardian Phone'] || 'your phone number'} to our texting line and send pickup times, locations, and any changes there before ${first}'s first ride.`]
+    : [`Thank you for requesting BRYC transportation for ${first}.`,
+       `${fields['School']} doesn't have a BRYC route right now. We'll review your request and let you know. We can't promise a route, but we review every request.`];
+  return { type: 'Transportation received', subject: `We received ${first}'s transportation form`, lines: lines };
 }
 
 

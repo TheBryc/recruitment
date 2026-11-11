@@ -618,3 +618,19 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Onboarding yes/no questions sit on the card itself, not on a gray strip behind the buttons */
 .ob-wizard .field-block.plain{background:none;border-radius:0;margin:28px 0}
 .ob-context{display:block;font-weight:400;color:var(--ink-2);margin-bottom:6px}
+
+/* Transportation form */
+.tr-form .field-block.plain{background:none;border-radius:0;margin:28px 0}
+.tr-route{margin:0 0 22px;padding:14px 16px;border-radius:12px;font-weight:600}
+.tr-route:empty{display:none}
+.tr-route.has-route{background:#e8f5ec;color:#14532d}
+.tr-route.no-route{background:var(--pink-soft);color:var(--pink-text)}
+.tr-list{margin:6px 0 22px;padding-left:20px;color:var(--ink-2)}
+.tr-list li{margin:4px 0}
+.tr-rule{border:1px solid var(--line);border-radius:12px;padding:0 16px;margin:8px 0;background:#fff}
+.tr-rule summary{cursor:pointer;font-weight:700;padding:14px 0;min-height:44px}
+.tr-rule ul{margin:0 0 14px;padding-left:20px;color:var(--ink-2)}
+.tr-waiver{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:8px 0 14px;background:var(--surface);font-size:.92rem;color:var(--ink-2)}
+.tr-waiver p{margin:0 0 10px}
+.tr-form .confirm-card{background:var(--surface);box-shadow:none}
+.tr-form h3.part-title{margin-top:22px}
