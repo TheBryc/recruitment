@@ -496,6 +496,9 @@ function onboardingPrefill(ss, studentKey, household) {
     if (value) out[column] = value;
   });
 
+  // Applying for the current year, the application asks only the current grade; that's the program-year grade.
+  if (!out['Grade in Program Year'] && cleanValue(app['Current Grade'])) out['Grade in Program Year'] = cleanValue(app['Current Grade']);
+
   // District and parish come from the SCHOOLS tab, so families aren't asked.
   const school = schoolInfo(ss)[normalizeText(out['School'])];
   if (school) {
