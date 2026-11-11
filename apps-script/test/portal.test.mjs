@@ -384,6 +384,77 @@ test('transportation: a school without a route is logged as a request; "no" skip
   assert.match(mails[before].body, /won't need BRYC transportation/);
 });
 
+// An admitted family that has sent income verification.
+function incomeSubmitted() {
+  const f = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Income Verification Required', 'Yes'); setMaster(2, 'Decision Released', true);
+  f.casey('submitTask', {studentKey: f.studentKey, task: 'income', fields: {'Document Type': 'IRS Form 1040 (preferred)', 'Guardian First Name': 'Casey'},
+    files: [{column: 'Document 1', name: '1040.pdf', mimeType: 'application/pdf', data: Buffer.from('pdf').toString('base64')}]});
+  return f;
+}
+const incomeSet = (header, value) => { const H = sheets.INCOME_RAW.rows[0]; sheets.INCOME_RAW.set(2, H.indexOf(header) + 1, value); };
+const incomeGet = header => { const H = sheets.INCOME_RAW.rows[0]; return sheets.INCOME_RAW.rows[1][H.indexOf(header)]; };
+const masterCol = header => sheets.MASTER.rows[1][sheets.MASTER.rows[0].indexOf(header)];
+const reviewEdit = header => { const col = sheets.INCOME_RAW.rows[0].indexOf(header) + 1;
+  return {user: {getEmail: () => 'forrest@thebryc.org'}, range: {getSheet: () => sheets.INCOME_RAW, getRow: () => 2, getLastRow: () => 2, getColumn: () => col, getLastColumn: () => col}}; };
+
+test('income fee scale', () => {
+  const fee = agi => ctx.participationFee(agi);
+  assert.deepEqual([109999, 110000, 160000, 160001, 210000, 210001, 400000].map(fee), [0, 250, 250, 350, 350, 500, 500]);
+  assert.equal(ctx.parseMoney('$123,456.00'), 123456);
+  assert.equal(ctx.parseMoney(''), null);
+});
+
+test('income verified under $110,000: no fee, family emailed, verifier recorded', () => {
+  incomeSubmitted();
+  const before = mails.length;
+  incomeSet('Verified AGI', '$58,200'); incomeSet('Verification Result', 'Verified');
+  ctx.onMasterChange(reviewEdit('Verification Result'));
+  assert.equal(incomeGet('Participation Fee'), 0);
+  assert.equal(incomeGet('Verified By'), 'forrest@thebryc.org');
+  assert.equal(typeof incomeGet('Verified Date').getTime, 'function');
+  assert.equal(masterCol('Income Verification Status'), 'Verified');
+  assert.equal(masterCol('Fee Status'), 'Not required');
+  assert.equal(mails.length, before + 1);
+  assert.match(mails[before].subject, /income verification is complete/);
+  assert.doesNotMatch(mails[before].body, /\$|fee/i);
+  ctx.processPending();
+  assert.equal(mails.filter(m => /income verification is complete/.test(m.subject)).length, 1, 'not sent twice');
+});
+
+test('income verified with a fee: no automatic email, MASTER asks staff to confirm the fee', () => {
+  incomeSubmitted();
+  setMaster(2, 'Onboarding Status', 'Complete');
+  const before = mails.length;
+  incomeSet('Verified AGI', 175000); incomeSet('Verification Result', 'Verified');
+  ctx.onMasterChange(reviewEdit('Verified AGI'));
+  assert.equal(incomeGet('Participation Fee'), 350);
+  assert.equal(masterCol('Participation Fee'), 350);
+  assert.equal(masterCol('Fee Status'), 'To confirm');
+  assert.equal(masterCol('Next Action'), 'Confirm Participation Fee');
+  assert.equal(mails.length, before, 'families never get the fee by email');
+});
+
+test('income needs follow-up: waits for the note, emails it, and reopens the form', () => {
+  const {casey, studentKey} = incomeSubmitted();
+  const before = mails.length;
+  incomeSet('Verification Result', 'Needs follow-up');
+  ctx.onMasterChange(reviewEdit('Verification Result'));
+  assert.equal(mails.length, before, 'no email until there is a note');
+  incomeSet('Note to Family', 'Please upload page 1 with line 11 showing.');
+  ctx.onMasterChange(reviewEdit('Note to Family'));
+  assert.equal(mails.length, before + 1);
+  assert.match(mails[before].body, /line 11 showing/);
+  assert.equal(masterCol('Income Verification Status'), 'Needs follow-up');
+  const task = casey('load').state.students[0].tasks.find(t => t.key === 'income');
+  assert.equal(task.done, false);
+  assert.equal(task.followUp, 'Please upload page 1 with line 11 showing.');
+  const again = casey('submitTask', {studentKey, task: 'income', fields: {'Document Type': 'IRS Form 1040 (preferred)'},
+    files: [{column: 'Document 1', name: '1040.pdf', mimeType: 'application/pdf', data: Buffer.from('pdf').toString('base64')}]});
+  assert.equal(again.ok, true);
+  assert.equal(sheets.INCOME_RAW.rows.length, 3, 'a second submission is saved as a new row');
+});
+
 test('siblings live under one household with their own statuses', () => {
   const {casey} = submitted();
   const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});

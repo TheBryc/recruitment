@@ -83,6 +83,10 @@ const PORTAL = {
     'Approved Medications', 'Injury or Illness', 'Neurodivergent Diagnosis', 'Testing Accommodations', 'Environmental Factors',
     'Policies Acknowledged', 'Counseling Permission', 'Media Permission', 'Guardian Signature', 'Information Confirmed'],
 
+  // Columns staff fill in on INCOME_RAW, and what the script fills in after a review.
+  incomeReviewColumns: ['Verified AGI', 'Verification Result', 'Note to Family', 'Verified By', 'Verified Date', 'Participation Fee', 'Family Notified'],
+  incomeColumns: ['Guardian First Name', 'Guardian Last Name', 'Guardian Email', 'Guardian Phone', 'Document Type', 'Filed Separately', 'Notes'],
+
   // Every column the transportation form can send, plus what the script adds.
   transportationColumns: ['Needs BRYC Transportation', 'Student First Name', 'Student Last Name', 'Grade in Program Year', 'School',
     'Guardian First Name', 'Guardian Last Name', 'Guardian Phone', 'Guardian Email', 'Authorization Agreed', 'Guardian Signature', 'Notes'],
@@ -299,6 +303,7 @@ function portalSubmitTask(ss, user, payload) {
     // Tell staff what the family corrected, so they can update MASTER.
     if (!/^no/i.test(cleanValue(fields['Accepts Admission']))) fields['Changed From Application'] = changedFromApplication(item.prefill, fields);
   }
+  if (taskKey === 'income') fields = cleanPortalFields(fields, PORTAL.incomeColumns);
   if (taskKey === 'transportation') {
     fields = cleanPortalFields(fields, PORTAL.transportationColumns);
     const riding = /^yes/i.test(cleanValue(fields['Needs BRYC Transportation']));
@@ -320,6 +325,10 @@ function portalSubmitTask(ss, user, payload) {
     if (taskKey === 'onboarding') {
       ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
         .concat(PORTAL.onboardingColumns, ['Changed From Application']));
+    }
+    if (taskKey === 'income') {
+      ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
+        .concat(PORTAL.incomeColumns, ['Document 1', 'Document 2'], PORTAL.incomeReviewColumns));
     }
     if (taskKey === 'transportation') {
       ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
@@ -356,7 +365,7 @@ function sendTaskConfirmation(ss, user, household, student, taskKey, fields) {
           lines: [`Thank you for completing ${first}'s onboarding form. We're excited to welcome ${first} to BRYC.`,
             'If there is anything else we need from you, it will show in your BRYC portal and we will email you.'] },
     income: { type: 'Income verification received', subject: `We received your income verification for ${first}`,
-      lines: ['Thank you for sending your income verification. Our team will review it and let you know if we need anything else.'] },
+      lines: ['Thank you for sending your income verification. Our team will review it and email you when it is complete or if we need anything else.'] },
     transportation: transportationMessage(first, fields)
   };
   const msg = messages[taskKey];
@@ -495,8 +504,13 @@ function studentTasks(master, view, ss, household) {
   if (normalizeText(master['Income Verification Required']) === 'yes') {
     const income = cleanValue(master['Income Verification Status']);
     const done = /submitted|verified|complete|not required/i.test(income);
-    tasks.push({ key: 'income', title: PORTAL.tasks.income.title, open: PORTAL.tasks.income.open,
-      done: done, status: /needs follow/i.test(income) ? 'We need a little more information. Please check your email.' : (done ? income : '') });
+    const incomeTask = { key: 'income', title: PORTAL.tasks.income.title, open: PORTAL.tasks.income.open,
+      done: done, status: /needs follow/i.test(income) ? 'We need a little more information. Please check your email.' : (done ? income : '') };
+    if (incomeTask.open && !done) {
+      incomeTask.prefill = guardianPrefill(ss, view.studentKey, household);
+      incomeTask.followUp = /needs follow/i.test(income) ? latestIncomeNote(ss, view.studentKey) : '';
+    }
+    tasks.push(incomeTask);
   }
 
   return tasks;
@@ -579,6 +593,130 @@ function transportationPrefill(ss, studentKey, household) {
     if (value) out[c] = value;
   });
   return out;
+}
+
+
+// Parent/guardian contact: the onboarding answers if they're in, otherwise the household and application.
+function guardianPrefill(ss, studentKey, household) {
+
+  const known = transportationPrefill(ss, studentKey, household);
+  const out = {};
+  ['Guardian First Name', 'Guardian Last Name', 'Guardian Email', 'Guardian Phone'].forEach(c => { if (known[c]) out[c] = known[c]; });
+  return out;
+}
+
+
+function latestIncomeNote(ss, studentKey) {
+
+  const rows = readObjects(ss.getSheetByName(PORTAL.tasks.income.sheet)).filter(r => cleanValue(r['Student Key']) === studentKey);
+  return rows.length ? cleanValue(rows[rows.length - 1]['Note to Family']) : '';
+}
+
+
+// "$123,456.00" → 123456. Blank or unreadable → null.
+function parseMoney(value) {
+
+  if (typeof value === 'number') return value;
+  const n = Number(cleanValue(value).replace(/[$,\s]/g, ''));
+  return cleanValue(value) && isFinite(n) ? n : null;
+}
+
+
+// The participation fee scale. Families never see it; staff confirm any fee with them.
+function participationFee(agi) {
+
+  // Under $110,000 is $0; $110,000 starts the first fee tier.
+  if (agi < 110000) return 0;
+  if (agi <= 160000) return 250;
+  if (agi <= 210000) return 350;
+  return 500;
+}
+
+
+/* ---------- staff review of income verification ---------- */
+
+// Runs when staff edit a review column on INCOME_RAW, and on every background run as a backup.
+// Verified: records the fee and verifier, updates MASTER, and emails families who owe nothing.
+// Needs follow-up (with a Note to Family): emails the note and reopens the form.
+function processIncomeReviews(ss, onlyRows, editorEmail) {
+
+  const sheet = ss.getSheetByName(PORTAL.tasks.income.sheet);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  ensureColumns(sheet, PORTAL.incomeReviewColumns);
+  const map = getHeaderMap(sheet);
+  const set = (row, header, value) => sheet.getRange(row, map[normalizeHeader(header)]).setValue(value);
+
+  readObjects(sheet).forEach((r, i) => {
+    const row = i + 2;
+    if (onlyRows && !onlyRows.includes(row)) return;
+    const result = normalizeText(r['Verification Result']);
+    if (!result) return;
+
+    let key = '';
+    if (/verified/.test(result)) {
+      const agi = parseMoney(r['Verified AGI']);
+      if (agi === null) return;   // wait for the AGI
+      // A fee staff typed in by hand wins over the scale.
+      const typed = parseMoney(r['Participation Fee']);
+      const fee = typed !== null ? typed : participationFee(agi);
+      if (typed === null) set(row, 'Participation Fee', fee);
+      key = 'verified';
+      if (isBlank(r['Verified By']) && editorEmail) set(row, 'Verified By', editorEmail);
+      if (isBlank(r['Verified Date'])) set(row, 'Verified Date', new Date());
+      if (cleanValue(r['Family Notified']).startsWith(key)) return;
+      updateMasterIncome(ss, r['BRYC ID'], 'Verified', fee);
+      // Only families who owe nothing get an automatic email; staff confirm any fee in person.
+      const sent = fee === 0 ? incomeEmail(ss, r, 'verified') : true;
+      if (sent) set(row, 'Family Notified', fee === 0 ? 'verified: emailed ' + new Date().toLocaleDateString('en-US') : 'verified: fee to confirm');
+    } else if (/follow|more info/.test(result)) {
+      if (!cleanValue(r['Note to Family'])) return;   // wait for the note
+      key = 'needs follow-up';
+      if (cleanValue(r['Family Notified']).startsWith(key)) return;
+      updateMasterIncome(ss, r['BRYC ID'], 'Needs follow-up', null);
+      if (incomeEmail(ss, r, 'follow-up')) set(row, 'Family Notified', key + ': emailed ' + new Date().toLocaleDateString('en-US'));
+    }
+  });
+}
+
+
+function updateMasterIncome(ss, brycId, status, fee) {
+
+  const master = ss.getSheetByName(CONFIG.masterSheet);
+  ['Participation Fee', 'Fee Status'].forEach(h => ensureHeader(master, h));
+  const headers = getHeaderMap(master);
+  const row = findMasterRow(master, headers[normalizeHeader('BRYC ID')], cleanValue(brycId));
+  if (!row) return;
+  setMasterValue(master, row, headers, 'Income Verification Status', status);
+  if (fee !== null) {
+    setMasterValue(master, row, headers, 'Participation Fee', fee);
+    const current = cleanValue(getMasterValue(master, row, headers, 'Fee Status'));
+    if (!current || /not required|to confirm/i.test(current)) setMasterValue(master, row, headers, 'Fee Status', fee > 0 ? 'To confirm' : 'Not required');
+  }
+  setMasterValue(master, row, headers, 'Last Activity', new Date());
+  recalculateOperationalFields(master, row);
+}
+
+
+function incomeEmail(ss, r, kind) {
+
+  const households = readObjects(portalSheet(ss, PORTAL.householdsSheet));
+  const household = households.find(h => h['Household ID'] === cleanValue(r['Household ID'])) || {};
+  const draft = readObjects(portalSheet(ss, PORTAL.draftsSheet)).find(d => d['Student Key'] === cleanValue(r['Student Key'])) || {};
+  const first = cleanValue(draft['Student First Name']) || 'your student';
+  const to = familyRecipients(household['Account Email'], household, r['Guardian Email']);
+  const base = { greeting: cleanValue(r['Guardian First Name']) || household['Guardian First Name'], button: 'View your portal',
+    brycId: r['BRYC ID'], householdId: r['Household ID'] };
+  if (kind === 'verified') {
+    return sendFamilyEmail(ss, 'Income verified', to, Object.assign(base, {
+      subject: `${first}'s income verification is complete`,
+      lines: [`Thank you for sending your income verification. We've finished our review, and there's nothing else you need to do.`]
+    }));
+  }
+  return sendFamilyEmail(ss, 'Income follow-up', to, Object.assign(base, {
+    subject: `We need a little more information for ${first}'s income verification`,
+    lines: ['Thank you for sending your income verification. To finish our review, we need a little more information:', cleanValue(r['Note to Family']),
+      'Sign in to your BRYC portal and open "Verify household income" to send it.']
+  }));
 }
 
 
