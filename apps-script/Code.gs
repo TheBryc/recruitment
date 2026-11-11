@@ -63,13 +63,13 @@ const CONFIG = {
     'No Action', 'Contact Family', 'Send Application', 'Review Application',
     'Follow Up on Onboarding', 'Review Income Requirement',
     'Follow Up on Income Verification', 'Review Income Verification',
-    'Contact Family About Income Verification'
+    'Contact Family About Income Verification', 'Confirm Participation Fee'
   ],
 
   // Editing any of these MASTER columns recalculates status and next action.
   statusDrivers: [
     'Decision', 'Onboarding Status', 'Income Verification Required',
-    'Income Verification Status', 'Referral Date', 'Inquiry Date', 'Application Date'
+    'Income Verification Status', 'Fee Status', 'Referral Date', 'Inquiry Date', 'Application Date'
   ],
 
   uploadColumns: ['Academic Record', 'ACT Report'],
@@ -266,6 +266,26 @@ function setupTriggers() {
 }
 
 
+// Staff entering a Verified AGI, result, or note on INCOME_RAW.
+function onIncomeReviewEdit(e, sheet) {
+
+  const headers = getHeaderMap(sheet);
+  const watched = ['Verified AGI', 'Verification Result', 'Note to Family'].map(h => headers[normalizeHeader(h)]).filter(Boolean);
+  if (!watched.some(c => c >= e.range.getColumn() && c <= e.range.getLastColumn())) return;
+  const rows = [];
+  for (let r = Math.max(2, e.range.getRow()); r <= e.range.getLastRow(); r++) rows.push(r);
+  const editor = e.user && e.user.getEmail ? e.user.getEmail() : '';
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return;
+  try {
+    SpreadsheetApp.flush();
+    processIncomeReviews(SpreadsheetApp.getActiveSpreadsheet(), rows, editor);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
 // Columns whose change can mean a family email: a release, a decision, a review, an income request.
 const EMAIL_COLUMNS = ['Decision', 'Decision Released', 'Application Status', 'Income Verification Required'];
 
@@ -273,7 +293,9 @@ function onMasterChange(e) {
 
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
-  if (sheet.getName() !== CONFIG.masterSheet || e.range.getLastRow() < 2) return;
+  if (e.range.getLastRow() < 2) return;
+  if (sheet.getName() === PORTAL.tasks.income.sheet) return onIncomeReviewEdit(e, sheet);
+  if (sheet.getName() !== CONFIG.masterSheet) return;
 
   const headers = getHeaderMap(sheet);
   const watched = EMAIL_COLUMNS.map(h => headers[normalizeHeader(h)]).filter(Boolean);
@@ -356,6 +378,11 @@ function processPending() {
       sendStatusEmails(ss);
     } catch (err) {
       console.error('Family emails: ' + err.message);
+    }
+    try {
+      processIncomeReviews(ss);
+    } catch (err) {
+      console.error('Income reviews: ' + err.message);
     }
 
   } finally {
@@ -825,6 +852,7 @@ function recalculateOperationalFields(master, row) {
 
       if (incomeStatus.includes('verified') || incomeStatus.includes('complete') || incomeStatus.includes('not required')) {
         currentStatus = 'RAM Complete';
+        if (normalizeText(value('Fee Status')) === 'to confirm') nextAction = 'Confirm Participation Fee';
       } else if (incomeStatus.includes('submitted')) {
         nextAction = 'Review Income Verification';
       } else if (incomeStatus.includes('follow')) {

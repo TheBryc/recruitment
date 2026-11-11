@@ -223,20 +223,33 @@
 <section class="view inner" id="task"><button class="back-link" data-view="portal" type="button"><span aria-hidden="true">←</span> Back to your portal</button>
 <span class="kicker" id="task-kicker">Next steps</span>
 <div class="form-card task-card">
-<form class="task-form" data-task="income" hidden="" novalidate="">
+<form class="task-form inc-form" data-task="income" hidden="" novalidate="">
 <h2>Verify household income</h2>
-<p>Please upload a copy of your most recent IRS Form 1040. Only the page showing your adjusted gross income (AGI) is required. AGI is on line 11. If the name of the parent(s) or guardian(s) appears on a different page, please upload that page too.</p>
-<p class="field-hint">You may cross out any information you don't want to share, as long as your name(s) and AGI are visible. Documents are stored securely, and only BRYC admissions staff can see them.</p>
-<div class="form-grid">
-<label>Guardian first name<input maxlength="80" name="incGuardianFirst" required="" data-col="Guardian First Name"/></label>
-<label>Guardian last name<input maxlength="80" name="incGuardianLast" required="" data-col="Guardian Last Name"/></label>
-<label>Guardian email<input maxlength="254" name="incGuardianEmail" required="" type="email" data-col="Guardian Email"/></label>
-<label>Guardian phone<input name="incGuardianPhone" required="" type="tel" data-col="Guardian Phone"/></label>
-<label class="wide">What are you uploading?<select name="incDocType" required="" data-col="Document Type"><option value="">Choose one</option><option>IRS Form 1040, 1040A, or 1040EZ</option><option>Unemployment benefits</option><option>Social Security Disability</option><option>Social Security SSI</option><option>SNAP benefits</option><option>Subsidized housing</option><option>THRIVE Academy enrollment letter</option><option>Most recent pay stub (no taxes filed in the last three years)</option></select></label>
+<p id="inc-intro">To finish your student’s enrollment, we need to verify your household income. It takes a few minutes, and you can upload a photo of your document.</p>
+<div class="inc-followup" hidden="" id="inc-followup" role="status"></div>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Parent/guardian</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your onboarding form</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label>First name<input maxlength="80" name="incGuardianFirst" required="" data-col="Guardian First Name" data-sum="Parent/guardian"/></label>
+<label>Last name<input maxlength="80" name="incGuardianLast" required="" data-col="Guardian Last Name" data-join="incGuardianFirst" data-join-sep=" "/></label>
+<label>Email<input maxlength="254" name="incGuardianEmail" required="" type="email" data-col="Guardian Email" data-sum="Email"/></label>
+<label>Phone<input name="incGuardianPhone" required="" type="tel" data-col="Guardian Phone" data-sum="Phone"/></label>
 </div>
+</section>
+
+<label class="wide">What are you uploading?<select name="incDocType" required="" data-col="Document Type"><option value="">Choose one</option><option>IRS Form 1040 (preferred)</option><option>Unemployment benefits letter</option><option>Social Security Disability (SSDI) award letter</option><option>Supplemental Security Income (SSI) award letter</option><option>SNAP benefits letter</option><option>Subsidized housing letter</option><option>Most recent pay stub (no taxes filed in the last three years)</option></select></label>
+<p class="field-hint">We prefer your most recent IRS Form 1040. If you don’t have one, choose one of the other documents.</p>
+<div class="inc-help" hidden="" id="inc-help"></div>
+
+<div hidden="" id="inc-upload">
 <label class="academic-file">Document<input accept=".pdf,.png,.jpg,.jpeg,.heic" name="incDoc1" required="" type="file" data-col="Document 1"/><small>PDF or photo, up to 10 MB.</small></label>
-<label class="checkline"><input name="incSeparate" type="checkbox" value="Yes" data-col="Filed Separately" data-reveal-check="#inc-doc2"/> Our parents/guardians filed separate tax returns, so we are uploading both.</label>
-<label class="academic-file" hidden="" id="inc-doc2">Second document<input accept=".pdf,.png,.jpg,.jpeg,.heic" name="incDoc2" type="file" data-col="Document 2"/></label>
+<label class="checkline" id="inc-separate-line"><input name="incSeparate" type="checkbox" value="Yes" data-col="Filed Separately" data-reveal-check="#inc-doc2"/> My student’s parents/guardians filed separate tax returns, so I’m uploading both.</label>
+<label class="academic-file" hidden="" id="inc-doc2">Second Form 1040<input accept=".pdf,.png,.jpg,.jpeg,.heic" name="incDoc2" required="" type="file" data-col="Document 2"/></label>
+<p class="field-hint">You may cross out anything you don’t want to share, like Social Security numbers, as long as the name(s) and income are visible. Documents are stored securely, and only BRYC admissions staff can see them.</p>
+</div>
 <label>Anything else we should know? <span class="optional">(optional)</span><textarea maxlength="1500" name="incNotes" rows="3" data-col="Notes"></textarea></label>
 </form>
 <form class="task-form ob-wizard" data-task="onboarding" hidden="" novalidate="">

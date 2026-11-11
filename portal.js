@@ -551,6 +551,7 @@ function renderTask() {
     Object.entries(prefill).forEach(([name, col]) => { if (hh[col]) setField(f, name, hh[col]); });
     if (key === 'onboarding') startOnboarding(f, (student.tasks || []).find(t => t.key === 'onboarding') || {});
     if (key === 'transportation') startTransportation(f, (student.tasks || []).find(t => t.key === 'transportation') || {});
+    if (key === 'income') startIncome(f, student, (student.tasks || []).find(t => t.key === 'income') || {});
   });
   // Onboarding has its own Back/Continue buttons; the other forms use the single Submit.
   $('#task-submit').hidden = key === 'onboarding';
@@ -597,6 +598,40 @@ function startCards(form, prefill, source) {
     card.classList.toggle('has-prefill', known);
     setEditing(card, !known || gap);
   });
+}
+
+/* ---------- income verification ---------- */
+
+// What to upload for each document, shown once they pick one.
+const INCOME_HELP = {
+  'IRS Form 1040 (preferred)': 'Upload page 1 of your most recent IRS Form 1040. It shows your name(s) and your adjusted gross income (AGI) on line 11.',
+  'Unemployment benefits letter': 'Upload your most recent unemployment benefits letter. It should show your name and the date.',
+  'Social Security Disability (SSDI) award letter': 'Upload your most recent SSDI award letter. It should show your name and the date.',
+  'Supplemental Security Income (SSI) award letter': 'Upload your most recent SSI award letter. It should show your name and the date.',
+  'SNAP benefits letter': 'Upload your most recent SNAP benefits letter. It should show your name and the date.',
+  'Subsidized housing letter': 'Upload your most recent subsidized housing letter. It should show your name and the date.',
+  'Most recent pay stub (no taxes filed in the last three years)': 'Upload your most recent pay stub. It should show your name and the pay period.'
+};
+
+function startIncome(form, student, task) {
+  const first = student.firstName || 'your student';
+  $('#inc-intro').textContent = `To finish ${first}’s enrollment, we need to verify your household income. It takes a few minutes, and you can upload a photo of your document.`;
+  const note = $('#inc-followup');
+  note.hidden = !task.followUp;
+  note.textContent = task.followUp ? `We need a little more information: ${task.followUp}` : '';
+  applyPrefill(form, task.prefill || {});
+  startCards(form, task.prefill || {}, 'From your onboarding form');
+  syncIncomeDoc(form);
+}
+
+function syncIncomeDoc(form) {
+  const type = form.elements.incDocType.value, help = $('#inc-help');
+  help.textContent = INCOME_HELP[type] || '';
+  help.hidden = !type;
+  $('#inc-upload').hidden = !type;
+  const is1040 = /^IRS Form 1040/.test(type);
+  $('#inc-separate-line').hidden = !is1040;
+  if (!is1040) { form.elements.incSeparate.checked = false; $('#inc-doc2').hidden = true; }
 }
 
 /* ---------- transportation ---------- */
@@ -752,6 +787,10 @@ function renderSummary(card) {
 }
 
 function initOnboarding() {
+  // Clear the 'Please fix' message once they start fixing.
+  $$('.task-form').forEach(f => f.addEventListener('input', () => { if ($('#task-message').textContent.startsWith('Please fix')) $('#task-message').textContent = ''; }));
+  const inc = $('.task-form[data-task="income"]');
+  if (inc) inc.elements.incDocType.addEventListener('change', () => syncIncomeDoc(inc));
   const tr = $('.task-form[data-task="transportation"]');
   if (tr) {
     tr.elements.trSchool.addEventListener('input', () => syncRoute(tr));
