@@ -565,6 +565,10 @@ const OB_NAMES = ['Accept', 'Student', 'Home and school', 'Family', 'Health', 'S
 
 function startOnboarding(form, task) {
   const prefill = task.prefill || {};
+  // Name the program year the grade is for, e.g. "Grade in 2027–2028".
+  const year = taskCtx?.student?.programYear;
+  $('#ob-grade-label').textContent = year ? `Grade in ${fmtYear(year)}` : 'Grade this school year';
+  form.elements.obGrade.dataset.sum = year ? `Grade in ${fmtYear(year)}` : 'Grade';
   obSchools = {};
   (task.schools || []).forEach(([name, district, parish]) => { obSchools[name.toLowerCase().trim()] = {district, parish}; });
   $('#ob-school-list').replaceChildren(...(task.schools || []).map(([name]) => el('option', {value: name})));

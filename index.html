@@ -262,7 +262,7 @@
 <div class="confirm-ask">
 <p class="confirm-new">New questions</p>
 <div class="form-grid">
-<label>Does your student go by a different first name? <span class="optional">(optional)</span><input maxlength="80" name="obPreferredName" data-col="Student Preferred First Name"/></label>
+<label>Preferred first name <span class="optional">(optional)</span><input maxlength="80" name="obPreferredName" data-col="Student Preferred First Name"/></label>
 <label>Preferred pronouns<select name="obPronouns" data-col="Student Pronouns" data-other="#ob-pronouns-other"><option value="">Select one</option><option>She/her</option><option>He/him</option><option>They/them</option><option>Other</option><option>Prefer not to say</option></select></label>
 <label hidden="" id="ob-pronouns-other">Please describe<input maxlength="80" name="obPronounsOther" type="text"/></label>
 <label>Birthday<input name="obBirthday" required="" type="date" data-col="Student Birthday"/></label>
@@ -292,7 +292,7 @@
 <p class="confirm-note">From your application</p>
 <dl class="confirm-summary"></dl>
 <div class="form-grid confirm-fields">
-<label>Grade during the program year<select name="obGrade" required="" data-col="Grade in Program Year" data-sum="Grade"><option value="">Select one</option><option>8th grade</option><option>9th grade</option><option>10th grade</option><option>11th grade</option><option>12th grade</option></select></label>
+<label><span id="ob-grade-label">Grade this school year</span><select name="obGrade" required="" data-col="Grade in Program Year" data-sum="Grade"><option value="">Select one</option><option>8th grade</option><option>9th grade</option><option>10th grade</option><option>11th grade</option><option>12th grade</option></select></label>
 <label>School<input maxlength="150" name="obSchool" required="" list="ob-school-list" autocomplete="off" data-col="School" data-sum="School"/></label>
 <datalist id="ob-school-list"></datalist>
 <div class="form-grid wide" hidden="" id="ob-school-extra">
@@ -378,8 +378,8 @@
 <div class="wizard-step" data-step="5"><h2>Permissions and signature</h2><p>Last step.</p>
 <section class="ob-plain">
 <label class="checkline"><input name="obPolicies" required="" type="checkbox" value="Yes" data-col="Policies Acknowledged"/> I have read and understand BRYC’s policies.</label>
-<fieldset class="field-block plain" data-required-radio="obCounseling"><legend class="question-title">Do you grant permission for your student to receive counseling services in accordance with the ethical guidelines set by the Louisiana LPC Board?</legend><div class="role-choice"><label class="choice"><input name="obCounseling" type="radio" value="yes" data-col="Counseling Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obCounseling" type="radio" value="no" data-col="Counseling Permission" data-label="No"/><span>No</span></label></div></fieldset>
-<fieldset class="field-block plain" data-required-radio="obMedia"><legend class="question-title">Do you grant permission for BRYC to use your student’s photo, audio, and video likeness and recordings?</legend><div class="role-choice"><label class="choice"><input name="obMedia" type="radio" value="yes" data-col="Media Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obMedia" type="radio" value="no" data-col="Media Permission" data-label="No"/><span>No</span></label></div></fieldset>
+<fieldset class="field-block plain" data-required-radio="obCounseling"><legend class="question-title"><span class="ob-context">BRYC offers counseling services to its Fellows. Our counselors follow the ethical guidelines set by the Louisiana LPC Board.</span> Do you grant permission for your student to receive counseling services from BRYC?</legend><div class="role-choice"><label class="choice"><input name="obCounseling" type="radio" value="yes" data-col="Counseling Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obCounseling" type="radio" value="no" data-col="Counseling Permission" data-label="No"/><span>No</span></label></div></fieldset>
+<fieldset class="field-block plain" data-required-radio="obMedia"><legend class="question-title"><span class="ob-context">BRYC takes photos, audio, and video at programs and events. We may use them on our website, on social media, and in materials that share the work of BRYC and its Fellows.</span> Do you grant permission for BRYC to use your student’s photo, audio, and video likeness and recordings?</legend><div class="role-choice"><label class="choice"><input name="obMedia" type="radio" value="yes" data-col="Media Permission" data-label="Yes"/><span>Yes</span></label><label class="choice"><input name="obMedia" type="radio" value="no" data-col="Media Permission" data-label="No"/><span>No</span></label></div></fieldset>
 <label>Parent/guardian signature (type your first and last name)<input maxlength="120" name="obSignature" required="" data-col="Guardian Signature"/></label>
 <label class="checkline"><input name="obConfirm" required="" type="checkbox" value="Yes" data-col="Information Confirmed"/> I reviewed the information above, and it is correct and true to the best of my knowledge.</label>
 </section>

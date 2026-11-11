@@ -324,6 +324,18 @@ test('onboarding fills school district and parish from the SCHOOLS tab', () => {
   assert.deepEqual(task.schools, [['Thrive Academy', 'Thrive Academy', 'East Baton Rouge']]);
 });
 
+test('current-year applicants: onboarding confirms the grade they gave on the application', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = familyWithDraft();
+  const fields = Object.assign({}, appFields, {'Program Year': '2026-2027', 'Current Grade': '10th grade'});
+  delete fields['Grade in Program Year'];
+  casey('submitApplication', {studentKey, fields});
+  ctx.processPending();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  const pre = casey('load').state.students[0].tasks.find(t => t.key === 'onboarding').prefill;
+  assert.equal(pre['Grade in Program Year'], '10th grade');
+});
+
 test('siblings live under one household with their own statuses', () => {
   const {casey} = submitted();
   const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});
