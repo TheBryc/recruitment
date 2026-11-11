@@ -152,7 +152,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await shot('06-income');
   await page.click('#task-submit');
   await page.waitForFunction(() => document.querySelector('.view.active')?.id === 'portal', null, {timeout: 8000}).catch(() => {});
-  ok((await page.textContent('#portal-flash')).includes('income verification form'), 'income flash');
+  ok((await page.textContent('#portal-flash')).includes('household income verification'), 'income flash');
   ok((await page.textContent('#student-list')).includes('Done'), 'income shows done');
   s = await admin(); ok(s.sheets.INCOME_RAW.length === 2 && s.files.some(f => f.folder === 'income-folder'), 'income row + file in income folder');
 
