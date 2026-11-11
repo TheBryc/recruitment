@@ -12,6 +12,8 @@ const PORTAL = {
   draftsSheet: 'PORTAL_DRAFTS',
   emailLogSheet: 'EMAIL_LOG',
   listsSheet: 'LISTS',
+  // School, School District, School Parish. Staff keep it current; onboarding fills district and parish from it.
+  schoolsSheet: 'SCHOOLS',
 
   // Public Firebase web key (the same one in firebase-config.js). Used only
   // to ask Google whether a sign-in token is real.
@@ -31,7 +33,7 @@ const PORTAL = {
 
   // Follow-up forms. A closed form shows as "opens soon" in the portal.
   tasks: {
-    onboarding: { sheet: 'ONBOARDING_RAW', open: false, title: 'Accept your spot and complete onboarding' },
+    onboarding: { sheet: 'ONBOARDING_RAW', open: true, title: 'Accept your spot and complete onboarding' },
     transportation: { sheet: 'TRANSPORTATION_RAW', open: false, title: 'Reserve transportation' },
     income: { sheet: 'INCOME_RAW', open: true, title: 'Verify household income', uploadColumns: ['Document 1', 'Document 2'] }
   },
@@ -284,6 +286,10 @@ function portalSubmitTask(ss, user, payload) {
   let fields = cleanPayloadFields(payload.fields);
   if (taskKey === 'onboarding') {
     fields = cleanPortalFields(fields, PORTAL.onboardingColumns);
+    // A school on the SCHOOLS tab always gets its district and parish from there.
+    const school = schoolInfo(ss)[normalizeText(fields['School'])];
+    if (school && school.district) fields['School District'] = school.district;
+    if (school && school.parish) fields['School Parish'] = school.parish;
     // Tell staff what the family corrected, so they can update MASTER.
     if (!/^no/i.test(cleanValue(fields['Accepts Admission']))) fields['Changed From Application'] = changedFromApplication(item.prefill, fields);
   }
@@ -307,7 +313,36 @@ function portalSubmitTask(ss, user, payload) {
     updateMasterAfterTask(ss, student.brycId, taskKey, fields, now);
   });
 
+  sendTaskConfirmation(ss, user, household, student, taskKey, fields);
+
   return { state: portalState(ss, user) };
+}
+
+
+// Confirms each follow-up form the moment it's submitted.
+function sendTaskConfirmation(ss, user, household, student, taskKey, fields) {
+
+  const first = student.firstName || 'your student';
+  const declined = taskKey === 'onboarding' && /^no/i.test(cleanValue(fields['Accepts Admission']));
+  const messages = {
+    onboarding: declined
+      ? { type: 'Onboarding declined', subject: `We received your response for ${first}`,
+          lines: [`Thank you for letting us know ${first} won't be joining BRYC this year.`, 'If anything changes, reply to this email and we will help.'] }
+      : { type: 'Onboarding received', subject: `We received ${first}'s onboarding form`,
+          lines: [`Thank you for completing ${first}'s onboarding form. We're excited to welcome ${first} to BRYC.`,
+            'If there is anything else we need from you, it will show in your BRYC portal and we will email you.'] },
+    income: { type: 'Income verification received', subject: `We received your income verification for ${first}`,
+      lines: ['Thank you for sending your income verification. Our team will review it and let you know if we need anything else.'] },
+    transportation: { type: 'Transportation received', subject: `We received ${first}'s transportation form`,
+      lines: [`Thank you for completing ${first}'s transportation form. We will share pickup details before the program starts.`] }
+  };
+  const msg = messages[taskKey];
+  if (!msg) return;
+
+  sendFamilyEmail(ss, msg.type, familyRecipients(user.email, household, fields['Guardian Email']), {
+    subject: msg.subject, greeting: household['Guardian First Name'], lines: msg.lines,
+    button: 'View your portal', brycId: student.brycId, householdId: household['Household ID']
+  });
 }
 
 
@@ -409,7 +444,11 @@ function studentTasks(master, view, ss, household) {
   const onboardingTask = { key: 'onboarding', title: PORTAL.tasks.onboarding.title, open: PORTAL.tasks.onboarding.open,
     done: onboarding.includes('complete') || has('onboarding'), status: onboarding.includes('complete') ? 'Complete' : '' };
   // Only sent while the form is open and unfinished, and only to this household.
-  if (onboardingTask.open && !onboardingTask.done) onboardingTask.prefill = onboardingPrefill(ss, view.studentKey, household);
+  if (onboardingTask.open && !onboardingTask.done) {
+    onboardingTask.prefill = onboardingPrefill(ss, view.studentKey, household);
+    // So the form can fill district and parish if the family changes schools.
+    onboardingTask.schools = Object.values(schoolInfo(ss)).map(s => [s.name, s.district, s.parish]);
+  }
   tasks.push(onboardingTask);
 
   tasks.push({ key: 'transportation', title: PORTAL.tasks.transportation.title, open: PORTAL.tasks.transportation.open,
@@ -457,11 +496,30 @@ function onboardingPrefill(ss, studentKey, household) {
     if (value) out[column] = value;
   });
 
+  // District and parish come from the SCHOOLS tab, so families aren't asked.
+  const school = schoolInfo(ss)[normalizeText(out['School'])];
+  if (school) {
+    if (school.district) out['School District'] = school.district;
+    if (school.parish) out['School Parish'] = school.parish;
+  }
+
   // "Different address?" on the application becomes "Same address?" here.
   if (out['Second Guardian Same Address']) out['Second Guardian Same Address'] = /^y/i.test(out['Second Guardian Same Address']) ? 'No' : 'Yes';
   if (out['Second Guardian First Name']) out['Second Guardian'] = 'Yes';
   else if (Object.keys(out).length) out['Second Guardian'] = 'No';
   if (out['Second Guardian'] === 'No') Object.keys(out).filter(c => /^Second Guardian ./.test(c)).forEach(c => delete out[c]);
+  return out;
+}
+
+
+// SCHOOLS tab as { normalized school name: {name, district, parish} }.
+function schoolInfo(ss) {
+
+  const out = {};
+  readObjects(ss.getSheetByName(PORTAL.schoolsSheet)).forEach(r => {
+    const name = cleanValue(r.School);
+    if (name) out[normalizeText(name)] = { name: name, district: cleanValue(r['School District']), parish: cleanValue(r['School Parish']) };
+  });
   return out;
 }
 
@@ -522,7 +580,7 @@ function linkPortalApplication(ss, response, brycId) {
 
 // Emails families when what they would see in the portal changes:
 // review, a released decision, or a request for income verification.
-function sendStatusEmails(ss) {
+function sendStatusEmails(ss, onlyRows) {
 
   const master = ss.getSheetByName(CONFIG.masterSheet);
   if (!master || master.getLastRow() < 2) return;
@@ -541,6 +599,7 @@ function sendStatusEmails(ss) {
     if (!household) return;
 
     const row = i + 2;
+    if (onlyRows && !onlyRows.includes(row)) return;
     const first = cleanValue(m['Fellow First Name']);
     const to = familyRecipients(household['Account Email'], household, m['Guardian Email']);
     const decision = cleanValue(m.Decision);
@@ -555,6 +614,8 @@ function sendStatusEmails(ss) {
           subject: `${first}'s BRYC application is under review`,
           lines: [`Our admissions team is now reviewing ${first}'s application.`, 'We will email you as soon as a decision is ready.']
         }));
+      } else if (released && /complete/i.test(cleanValue(m['Onboarding Status']))) {
+        sent = true;   // they already saw the decision and finished onboarding; no "decision is ready" email
       } else if (released) {
         sent = sendFamilyEmail(ss, 'Decision released', to, Object.assign({}, base, {
           subject: `A decision is ready for ${first}'s BRYC application`,

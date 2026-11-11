@@ -12,6 +12,7 @@ http.createServer((req, res) => {
         if (a.op === 'process') env.ctx.processPending();
         if (a.op === 'set') env.sheets.MASTER.set(a.row, HEADERS.MASTER.indexOf(a.header) + 1, a.value);
         if (a.op === 'enable') require_enable(a.task);
+        if (a.op === 'school') env.sheets.SCHOOLS.appendRow(a.row);
         return send(res, 200, {ok: true, sheets: Object.fromEntries(Object.entries(env.sheets).map(([k, s]) => [k, s.rows])), mails: env.mails, files: env.savedFiles.map(f => ({folder: f.folder, name: f.name}))});
       }
       send(res, 404, {});
@@ -20,3 +21,5 @@ http.createServer((req, res) => {
 }).listen(8791, () => console.log('mock exec on 8791'));
 import vm from 'node:vm';
 function require_enable(task) { vm.runInContext(`PORTAL.tasks.${task}.open = true`, env.ctx); }
+// Start with onboarding closed; the test opens it when it gets there.
+vm.runInContext('PORTAL.tasks.onboarding.open = false', env.ctx);

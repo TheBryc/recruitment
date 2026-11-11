@@ -602,3 +602,15 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .confirm-ask{margin-top:18px;padding-top:16px;border-top:1px dashed var(--field)}
 .confirm-new{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pink-text);margin:6px 0 8px}
 @media(max-width:600px){.confirm-card{padding:16px}.confirm-summary{grid-template-columns:1fr;gap:0}.confirm-summary dd{margin-bottom:10px}.confirm-summary .sum-break+dd{border-top:0;padding-top:0;margin-top:0}}
+
+/* Onboarding steps: same look as the application, six steps */
+.ob-milestones{grid-template-columns:repeat(6,1fr)}
+.ob-wizard .wizard-step>h2{margin-top:4px}
+.ob-wizard .confirm-card{background:var(--surface);border-color:var(--line);box-shadow:none}
+.ob-wizard .confirm-card:first-of-type{margin-top:0}
+.ob-wizard .confirm-summary dd,.ob-wizard .confirm-fields{color:var(--ink)}
+.ob-wizard .ob-plain{margin:0}
+.ob-wizard .wizard-actions{align-items:center}
+.ob-wizard #ob-back[hidden]+#ob-next{margin-left:auto}
+.task-card:has(.ob-wizard:not([hidden])){padding:36px}
+@media(max-width:600px){.task-card:has(.ob-wizard:not([hidden])){padding:22px 18px}}

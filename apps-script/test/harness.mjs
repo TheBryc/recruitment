@@ -15,7 +15,8 @@ export const HEADERS = {
   EMAIL_LOG: ['Sent At', 'Type', 'To', 'Subject', 'BRYC ID', 'Household ID', 'Result'],
   INCOME_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Guardian First Name', 'Guardian Last Name', 'Guardian Email', 'Guardian Phone', 'Document Type', 'Filed Separately', 'Document 1', 'Document 2', 'Notes', 'Verified AGI', 'Verification Result', 'Verified By', 'Verified Date', 'Document Deleted Date'],
   ONBOARDING_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Accepts Admission', 'Decline Reason', 'Student Preferred First Name', 'Guardian Signature'],
-  TRANSPORTATION_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Needs BRYC Transportation', 'Guardian Signature']
+  TRANSPORTATION_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Needs BRYC Transportation', 'Guardian Signature'],
+  SCHOOLS: ['School', 'School District', 'School Parish', 'Notes']
 };
 
 // LISTS columns the portal reads for family-facing wording.
@@ -72,7 +73,7 @@ export function createEnv() {
   const savedFiles = [], mails = [], cache = new Map(), props = {};
   const ctx = {
     console: {error() {}, warn() {}, log() {}},
-    SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }) },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }), flush() {} },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
     ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },

@@ -549,8 +549,10 @@ function renderTask() {
     if ($('#ob-decline')) $('#ob-decline').hidden = true;
     const prefill = {incGuardianFirst: 'Guardian First Name', incGuardianLast: 'Guardian Last Name', incGuardianEmail: 'Guardian Email', incGuardianPhone: 'Guardian Phone'};
     Object.entries(prefill).forEach(([name, col]) => { if (hh[col]) setField(f, name, hh[col]); });
-    if (key === 'onboarding') startOnboarding(f, (student.tasks || []).find(t => t.key === 'onboarding')?.prefill || {});
+    if (key === 'onboarding') startOnboarding(f, (student.tasks || []).find(t => t.key === 'onboarding') || {});
   });
+  // Onboarding has its own Back/Continue buttons; the other forms use the single Submit.
+  $('#task-submit').hidden = key === 'onboarding';
   $('#task-submit').disabled = false;
 }
 
@@ -558,12 +560,20 @@ function renderTask() {
 
 // Fills the form from the application, then shows each prefilled section as a
 // short summary with an Edit button. Sections with missing answers open on their own.
-function startOnboarding(form, prefill) {
+let obStep = 0, obSchools = {};
+const OB_NAMES = ['Accept', 'Student', 'Home and school', 'Family', 'Health', 'Sign'];
+
+function startOnboarding(form, task) {
+  const prefill = task.prefill || {};
+  obSchools = {};
+  (task.schools || []).forEach(([name, district, parish]) => { obSchools[name.toLowerCase().trim()] = {district, parish}; });
+  $('#ob-school-list').replaceChildren(...(task.schools || []).map(([name]) => el('option', {value: name})));
   Object.entries(prefill).forEach(([col, value]) => {
     const control = form.querySelector(`[data-col="${CSS.escape(col)}"]`);
     if (control) setField(form, control.name, value);
   });
-  syncReveals(form); syncShows(form); syncSecondGuardianAsk(form);
+  syncReveals(form); syncShows(form); syncSecondGuardianAsk(form); syncSchool(form);
+  $('#ob-decline').hidden = true;
   form.querySelectorAll('[data-confirm]').forEach(card => {
     const known = [...card.querySelectorAll('.confirm-fields [data-col]')].some(c => prefill[c.dataset.col]);
     const gap = !!missingIn(card), note = card.querySelector('.confirm-note');
@@ -572,6 +582,66 @@ function startOnboarding(form, prefill) {
     card.classList.toggle('has-prefill', known);
     setEditing(card, !known || gap);
   });
+  obStep = 0; showObStep(form);
+}
+
+// A school on the SCHOOLS list fills its district and parish; any other school asks for them.
+function syncSchool(form) {
+  const known = obSchools[form.elements.obSchool.value.toLowerCase().trim()];
+  const extra = $('#ob-school-extra');
+  if (known && known.district && known.parish) {
+    form.elements.obDistrict.value = known.district; form.elements.obSchoolParish.value = known.parish; extra.hidden = true;
+  } else {
+    if (extra.hidden) { form.elements.obDistrict.value = known?.district || ''; form.elements.obSchoolParish.value = known?.parish || ''; }
+    extra.hidden = !form.elements.obSchool.value.trim();
+  }
+}
+
+function obSteps(form) { return [...form.querySelectorAll('.wizard-step')]; }
+
+function showObStep(form) {
+  const steps = obSteps(form), last = steps.length - 1;
+  steps.forEach((st, i) => st.classList.toggle('active', i === obStep));
+  $('#ob-count').textContent = `Step ${obStep + 1} of ${steps.length} · ${OB_NAMES[obStep]}`;
+  form.querySelectorAll('.ob-milestones li').forEach((li, i) => {
+    li.classList.toggle('active', i === obStep); li.classList.toggle('done', i < obStep);
+    if (i === obStep) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+  });
+  $('#ob-fill').style.width = ((obStep + 1) / steps.length * 100) + '%';
+  $('#ob-back').hidden = obStep === 0;
+  const declining = form.elements.obAccept.value === 'no';
+  $('#ob-next').textContent = declining ? 'Submit our response' : obStep === last ? 'Submit' : 'Continue →';
+  $('#ob-notice').textContent = '';
+  const top = $('#task').getBoundingClientRect().top + window.scrollY - 80;
+  window.scrollTo({top: Math.max(0, top), behavior: 'instant'});
+}
+
+// Checks only the questions on one step (other steps are hidden from the check for a moment).
+function obStepErrors(form, index) {
+  const others = obSteps(form).filter((_, i) => i !== index);
+  others.forEach(st => { st.hidden = true; });
+  try { return forms().formErrors(form); } finally { others.forEach(st => { st.hidden = false; }); }
+}
+
+function obFail(form, first) {
+  openFlagged(form);
+  $('#ob-notice').textContent = 'Please fix the highlighted questions.';
+  first.focus({preventScroll: true}); first.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+async function obNext(form) {
+  const steps = obSteps(form), last = steps.length - 1;
+  const declining = obStep === 0 && form.elements.obAccept.value === 'no';
+  const first = obStepErrors(form, obStep);
+  if (first) return obFail(form, first);
+  if (!declining && obStep < last) { obStep++; showObStep(form); return; }
+  // Submitting: a decline sends only the first step; an acceptance sends every step.
+  if (!declining) {
+    const anyError = forms().formErrors(form);
+    if (anyError) { obStep = steps.findIndex(st => st.contains(anyError)); showObStep(form); return obFail(form, anyError); }
+  }
+  const fields = forms().collectAnswers(declining ? steps[0] : form);
+  await sendTask(fields, [], $('#ob-next'), $('#ob-notice'));
 }
 
 // A select with data-show reveals its target when data-show-value is chosen.
@@ -627,7 +697,7 @@ function renderSummary(card) {
   dl.replaceChildren();
   card.querySelectorAll('.confirm-fields [data-sum], .confirm-fields [data-join]').forEach(c => {
     // A radio with data-sum is only listed when it's the one picked ("Second parent/guardian: No").
-    if (hiddenIn(c, card) || (c.type === 'radio' && !c.checked)) return;
+    if ((hiddenIn(c, card) && !('sumAlways' in c.dataset && c.value)) || (c.type === 'radio' && !c.checked)) return;
     const value = shownValue(c);
     if (c.dataset.join) {
       const dd = rows[c.dataset.join];
@@ -657,7 +727,12 @@ function initOnboarding() {
   form.addEventListener('change', e => {
     if (e.target.matches('select[data-show]')) syncShows(form);
     if (e.target.name === 'obSecond') syncSecondGuardianAsk(form);
+    if (e.target.name === 'obSchool') syncSchool(form);
+    if (e.target.name === 'obAccept') { $('#ob-decline').hidden = form.elements.obAccept.value !== 'no'; showObStep(form); }
   });
+  form.elements.obSchool.addEventListener('input', () => syncSchool(form));
+  $('#ob-back').addEventListener('click', () => { if (obStep > 0) { obStep--; showObStep(form); } });
+  $('#ob-next').addEventListener('click', () => obNext(form));
 }
 
 // Open any section that holds an unanswered question so the family can see it.
@@ -669,26 +744,26 @@ function initTasks() {
   initOnboarding();
   // A checkbox with data-reveal-check shows its target while checked.
   $$('[data-reveal-check]').forEach(c => c.addEventListener('change', () => { const t = $(c.dataset.revealCheck); if (t) t.hidden = !c.checked; }));
-  // Declining admission skips the rest of onboarding and asks why.
-  $$('input[name="obAccept"]').forEach(r => r.addEventListener('change', () => {
-    const v = r.form.elements.obAccept.value; $('#ob-decline').hidden = v !== 'no';
-    $('#task-submit').textContent = v === 'no' ? 'Submit our response' : 'Submit';
-  }));
   $('#task-submit').addEventListener('click', async () => {
     if (!taskCtx) return;
     const form = $(`.task-form[data-task="${taskCtx.key}"]`), msg = $('#task-message'), b = $('#task-submit');
     const first = forms().formErrors(form);
-    openFlagged(form);
     if (first) { msg.textContent = 'Please fix the highlighted questions.'; first.focus({preventScroll: true}); first.scrollIntoView({behavior: 'smooth', block: 'center'}); return; }
-    busy(b, true, 'Submitting…'); msg.textContent = '';
-    try {
-      const fields = forms().collectAnswers(form), files = await forms().collectFiles(form);
-      const {student, key} = taskCtx;
-      await api('submitTask', {studentKey: student.studentKey, task: key, fields, files});
-      busy(b, false); taskCtx = null; go('portal');
-      flash(`Thank you. We received the ${TASK_KICKER[key].toLowerCase()} form for ${student.firstName || 'your student'}.`);
-    } catch (err) { msg.textContent = err.message; busy(b, false); }
+    let files;
+    try { files = await forms().collectFiles(form); } catch (err) { msg.textContent = err.message; return; }
+    await sendTask(forms().collectAnswers(form), files, b, msg);
   });
+}
+
+async function sendTask(fields, files, b, msg) {
+  if (!taskCtx) return;
+  busy(b, true, 'Submitting…'); msg.textContent = '';
+  try {
+    const {student, key} = taskCtx;
+    await api('submitTask', {studentKey: student.studentKey, task: key, fields, files});
+    busy(b, false); taskCtx = null; go('portal');
+    flash(`Thank you. We received the ${TASK_KICKER[key].toLowerCase()} form for ${student.firstName || 'your student'}. A confirmation email is on its way.`);
+  } catch (err) { msg.textContent = err.message; busy(b, false); }
 }
 
 /* ---------- sign-in state ---------- */
