@@ -538,7 +538,9 @@ const TASK_KICKER = {onboarding: 'Onboarding', transportation: 'Transportation',
 function renderTask() {
   if (!taskCtx) return;
   const {student, key} = taskCtx, hh = state?.household || {};
-  $('#task-kicker').textContent = `${TASK_KICKER[key] || 'Next steps'} for ${studentName(student)}`;
+  // Income is verified once per household, so it's addressed to the parent/guardian.
+  const guardian = [hh['Guardian First Name'], hh['Guardian Last Name']].filter(Boolean).join(' ');
+  $('#task-kicker').textContent = `${TASK_KICKER[key] || 'Next steps'} for ${key === 'income' && guardian ? guardian : studentName(student)}`;
   $('#task-message').textContent = '';
   $$('.task-form').forEach(f => {
     const on = f.dataset.task === key; f.hidden = !on; if (!on) return;
@@ -614,8 +616,7 @@ const INCOME_HELP = {
 };
 
 function startIncome(form, student, task) {
-  const first = student.firstName || 'your student';
-  $('#inc-intro').textContent = `To finish ${first}’s enrollment, we need to verify your household income. It takes a few minutes, and you can upload a photo of your document.`;
+  $('#inc-intro').textContent = 'We verify income once per household, so this covers every student in your household. It takes a few minutes, and you can upload a photo of your document.';
   const note = $('#inc-followup');
   note.hidden = !task.followUp;
   note.textContent = task.followUp ? `We need a little more information: ${task.followUp}` : '';
@@ -847,7 +848,9 @@ async function sendTask(fields, files, b, msg) {
     const {student, key} = taskCtx;
     await api('submitTask', {studentKey: student.studentKey, task: key, fields, files});
     busy(b, false); taskCtx = null; go('portal');
-    flash(`Thank you. We received the ${TASK_KICKER[key].toLowerCase()} form for ${student.firstName || 'your student'}. A confirmation email is on its way.`);
+    flash(key === 'income'
+      ? 'Thank you. We received your household income verification. A confirmation email is on its way.'
+      : `Thank you. We received the ${TASK_KICKER[key].toLowerCase()} form for ${student.firstName || 'your student'}. A confirmation email is on its way.`);
   } catch (err) { msg.textContent = err.message; busy(b, false); }
 }
 

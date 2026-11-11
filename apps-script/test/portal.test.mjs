@@ -151,7 +151,7 @@ test('income verification appears when required, is requested by email, and upda
   const {casey, studentKey} = submitted();
   setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true); setMaster(2, 'Income Verification Required', 'Yes');
   ctx.processPending();
-  assert.ok(mails.some(m => m.subject === 'One more step for Jordan: income verification'));
+  assert.ok(mails.some(m => m.subject === 'One more step: verify your household income'));
   const before = mails.length;
   ctx.processPending();
   assert.equal(mails.length, before, 'income request sent once');
@@ -453,6 +453,40 @@ test('income needs follow-up: waits for the note, emails it, and reopens the for
     files: [{column: 'Document 1', name: '1040.pdf', mimeType: 'application/pdf', data: Buffer.from('pdf').toString('base64')}]});
   assert.equal(again.ok, true);
   assert.equal(sheets.INCOME_RAW.rows.length, 3, 'a second submission is saved as a new row');
+});
+
+test('income is verified once per household: one request, one submission, one fee', () => {
+  const {casey, studentKey} = submitted();
+  const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});
+  casey('submitApplication', {studentKey: k2, fields: Object.assign({}, appFields, {'Student First Name': 'Riley'})});
+  ctx.processPending();
+  [2, 3].forEach(r => { setMaster(r, 'Decision', 'Admitted'); setMaster(r, 'Income Verification Required', 'Yes'); setMaster(r, 'Onboarding Status', 'Complete'); setMaster(r, 'Decision Released', true); });
+  const before = mails.length;
+  ctx.processPending();
+  assert.equal(mails.slice(before).filter(m => /household income/.test(m.subject)).length, 1, 'one request email for the household');
+
+  casey('submitTask', {studentKey, task: 'income', fields: {'Document Type': 'IRS Form 1040 (preferred)'},
+    files: [{column: 'Document 1', name: '1040.pdf', mimeType: 'application/pdf', data: Buffer.from('pdf').toString('base64')}]});
+  const students = casey('load').state.students;
+  assert.ok(students.every(st => st.tasks.find(t => t.key === 'income').done), 'one submission covers both students');
+  assert.match(casey('submitTask', {studentKey: k2, task: 'income', fields: {}}).error, /already submitted/);
+  assert.equal(master(3, 'Income Verification Status'), 'Submitted');
+  assert.match(sheets.INCOME_RAW.rows[1][sheets.INCOME_RAW.rows[0].indexOf('Students')], /Jordan Sample.*Riley Sample/);
+
+  const H = sheets.INCOME_RAW.rows[0];
+  sheets.INCOME_RAW.set(2, H.indexOf('Verified AGI') + 1, 150000);
+  sheets.INCOME_RAW.set(2, H.indexOf('Verification Result') + 1, 'Verified');
+  ctx.processPending();
+  assert.equal(master(2, 'Income Verification Status'), 'Verified');
+  assert.equal(master(3, 'Income Verification Status'), 'Verified');
+  const fee = r => sheets.MASTER.rows[r - 1][sheets.MASTER.rows[0].indexOf('Participation Fee')];
+  const feeStatus = r => sheets.MASTER.rows[r - 1][sheets.MASTER.rows[0].indexOf('Fee Status')];
+  assert.equal(fee(2), 250);
+  assert.equal(feeStatus(2), 'To confirm');
+  assert.ok(!fee(3), 'the fee is not repeated on the sibling');
+  assert.match(feeStatus(3), /^Household fee on PY28-/);
+  assert.equal(master(2, 'Next Action'), 'Confirm Participation Fee');
+  assert.notEqual(master(3, 'Next Action'), 'Confirm Participation Fee');
 });
 
 test('siblings live under one household with their own statuses', () => {

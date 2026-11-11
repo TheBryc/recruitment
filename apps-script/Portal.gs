@@ -303,7 +303,13 @@ function portalSubmitTask(ss, user, payload) {
     // Tell staff what the family corrected, so they can update MASTER.
     if (!/^no/i.test(cleanValue(fields['Accepts Admission']))) fields['Changed From Application'] = changedFromApplication(item.prefill, fields);
   }
-  if (taskKey === 'income') fields = cleanPortalFields(fields, PORTAL.incomeColumns);
+  if (taskKey === 'income') {
+    fields = cleanPortalFields(fields, PORTAL.incomeColumns);
+    // One submission covers every student in the household who needs it.
+    fields['Students'] = portalState(ss, user).students
+      .filter(s => (s.tasks || []).some(t => t.key === 'income'))
+      .map(s => [s.firstName, s.lastName].filter(Boolean).join(' ') + (s.brycId ? ' (' + s.brycId + ')' : '')).join('; ');
+  }
   if (taskKey === 'transportation') {
     fields = cleanPortalFields(fields, PORTAL.transportationColumns);
     const riding = /^yes/i.test(cleanValue(fields['Needs BRYC Transportation']));
@@ -328,7 +334,7 @@ function portalSubmitTask(ss, user, payload) {
     }
     if (taskKey === 'income') {
       ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
-        .concat(PORTAL.incomeColumns, ['Document 1', 'Document 2'], PORTAL.incomeReviewColumns));
+        .concat(PORTAL.incomeColumns, ['Students', 'Document 1', 'Document 2'], PORTAL.incomeReviewColumns));
     }
     if (taskKey === 'transportation') {
       ensureColumns(portalSheet(ss, task.sheet), ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key']
@@ -364,8 +370,9 @@ function sendTaskConfirmation(ss, user, household, student, taskKey, fields) {
       : { type: 'Onboarding received', subject: `We received ${first}'s onboarding form`,
           lines: [`Thank you for completing ${first}'s onboarding form. We're excited to welcome ${first} to BRYC.`,
             'If there is anything else we need from you, it will show in your BRYC portal and we will email you.'] },
-    income: { type: 'Income verification received', subject: `We received your income verification for ${first}`,
-      lines: ['Thank you for sending your income verification. Our team will review it and email you when it is complete or if we need anything else.'] },
+    income: { type: 'Income verification received', subject: 'We received your household income verification',
+      lines: ['Thank you for sending your household income verification. It covers every student in your household.',
+        'Our team will review it and email you when it is complete or if we need anything else.'] },
     transportation: transportationMessage(first, fields)
   };
   const msg = messages[taskKey];
@@ -397,7 +404,12 @@ function updateMasterAfterTask(ss, brycId, taskKey, fields, now) {
     }
   }
 
-  if (taskKey === 'income') setMasterValue(master, row, headers, 'Income Verification Status', 'Submitted');
+  if (taskKey === 'income') {
+    householdIncomeRows(master, fields['Household ID'], brycId).rows.forEach(s => {
+      setMasterValue(master, s.row, headers, 'Income Verification Status', 'Submitted');
+      if (s.row !== row) { setMasterValue(master, s.row, headers, 'Last Activity', now); recalculateOperationalFields(master, s.row); }
+    });
+  }
 
   if (taskKey === 'transportation') {
     ensureHeader(master, 'Transportation');
@@ -502,13 +514,15 @@ function studentTasks(master, view, ss, household) {
   tasks.push(transportationTask);
 
   if (normalizeText(master['Income Verification Required']) === 'yes') {
-    const income = cleanValue(master['Income Verification Status']);
+    // Income is verified once per household: a sibling's submission counts for everyone.
+    const shared = householdIncome(ss, household && household['Household ID']);
+    const income = shared ? shared.status : cleanValue(master['Income Verification Status']);
     const done = /submitted|verified|complete|not required/i.test(income);
     const incomeTask = { key: 'income', title: PORTAL.tasks.income.title, open: PORTAL.tasks.income.open,
       done: done, status: /needs follow/i.test(income) ? 'We need a little more information. Please check your email.' : (done ? income : '') };
     if (incomeTask.open && !done) {
       incomeTask.prefill = guardianPrefill(ss, view.studentKey, household);
-      incomeTask.followUp = /needs follow/i.test(income) ? latestIncomeNote(ss, view.studentKey) : '';
+      incomeTask.followUp = shared && /needs follow/i.test(income) ? shared.note : '';
     }
     tasks.push(incomeTask);
   }
@@ -606,10 +620,30 @@ function guardianPrefill(ss, studentKey, household) {
 }
 
 
-function latestIncomeNote(ss, studentKey) {
+// The household's latest income submission: Submitted, Verified, or Needs follow-up (with the note).
+function householdIncome(ss, householdId) {
 
-  const rows = readObjects(ss.getSheetByName(PORTAL.tasks.income.sheet)).filter(r => cleanValue(r['Student Key']) === studentKey);
-  return rows.length ? cleanValue(rows[rows.length - 1]['Note to Family']) : '';
+  if (!cleanValue(householdId)) return null;
+  const rows = readObjects(ss.getSheetByName(PORTAL.tasks.income.sheet)).filter(r => cleanValue(r['Household ID']) === cleanValue(householdId));
+  if (!rows.length) return null;
+  const last = rows[rows.length - 1], result = normalizeText(last['Verification Result']);
+  if (/verified/.test(result)) return { status: 'Verified', note: '' };
+  if (/follow|more info/.test(result) && cleanValue(last['Note to Family'])) return { status: 'Needs follow-up', note: cleanValue(last['Note to Family']) };
+  return { status: 'Submitted', note: '' };
+}
+
+
+// MASTER rows in this household that need income verification (always including the given BRYC ID).
+function householdIncomeRows(master, householdId, brycId) {
+
+  const headers = getHeaderMap(master);
+  const rows = [];
+  readObjects(master).forEach((m, i) => {
+    const sameHousehold = cleanValue(householdId) && cleanValue(m['Household ID']) === cleanValue(householdId)
+      && normalizeText(m['Income Verification Required']) === 'yes';
+    if (sameHousehold || cleanValue(m['BRYC ID']) === cleanValue(brycId)) rows.push({ row: i + 2, brycId: cleanValue(m['BRYC ID']), values: m });
+  });
+  return { headers: headers, rows: rows };
 }
 
 
@@ -664,7 +698,7 @@ function processIncomeReviews(ss, onlyRows, editorEmail) {
       if (isBlank(r['Verified By']) && editorEmail) set(row, 'Verified By', editorEmail);
       if (isBlank(r['Verified Date'])) set(row, 'Verified Date', new Date());
       if (cleanValue(r['Family Notified']).startsWith(key)) return;
-      updateMasterIncome(ss, r['BRYC ID'], 'Verified', fee);
+      updateMasterIncome(ss, r, 'Verified', fee);
       // Only families who owe nothing get an automatic email; staff confirm any fee in person.
       const sent = fee === 0 ? incomeEmail(ss, r, 'verified') : true;
       if (sent) set(row, 'Family Notified', fee === 0 ? 'verified: emailed ' + new Date().toLocaleDateString('en-US') : 'verified: fee to confirm');
@@ -672,28 +706,37 @@ function processIncomeReviews(ss, onlyRows, editorEmail) {
       if (!cleanValue(r['Note to Family'])) return;   // wait for the note
       key = 'needs follow-up';
       if (cleanValue(r['Family Notified']).startsWith(key)) return;
-      updateMasterIncome(ss, r['BRYC ID'], 'Needs follow-up', null);
+      updateMasterIncome(ss, r, 'Needs follow-up', null);
       if (incomeEmail(ss, r, 'follow-up')) set(row, 'Family Notified', key + ': emailed ' + new Date().toLocaleDateString('en-US'));
     }
   });
 }
 
 
-function updateMasterIncome(ss, brycId, status, fee) {
+// Updates every student in the household. The fee is one per household, kept on the row of the
+// student whose form was submitted; siblings point to it so it's never counted twice.
+function updateMasterIncome(ss, r, status, fee) {
 
   const master = ss.getSheetByName(CONFIG.masterSheet);
   ['Participation Fee', 'Fee Status'].forEach(h => ensureHeader(master, h));
-  const headers = getHeaderMap(master);
-  const row = findMasterRow(master, headers[normalizeHeader('BRYC ID')], cleanValue(brycId));
-  if (!row) return;
-  setMasterValue(master, row, headers, 'Income Verification Status', status);
-  if (fee !== null) {
-    setMasterValue(master, row, headers, 'Participation Fee', fee);
-    const current = cleanValue(getMasterValue(master, row, headers, 'Fee Status'));
-    if (!current || /not required|to confirm/i.test(current)) setMasterValue(master, row, headers, 'Fee Status', fee > 0 ? 'To confirm' : 'Not required');
-  }
-  setMasterValue(master, row, headers, 'Last Activity', new Date());
-  recalculateOperationalFields(master, row);
+  const primary = cleanValue(r['BRYC ID']);
+  const found = householdIncomeRows(master, r['Household ID'], primary);
+  const headers = found.headers;
+  found.rows.forEach(s => {
+    setMasterValue(master, s.row, headers, 'Income Verification Status', status);
+    if (fee !== null) {
+      const current = cleanValue(s.values['Fee Status']);
+      const automatic = !current || /not required|to confirm|household fee on/i.test(current);
+      if (s.brycId === primary) {
+        setMasterValue(master, s.row, headers, 'Participation Fee', fee);
+        if (automatic) setMasterValue(master, s.row, headers, 'Fee Status', fee > 0 ? 'To confirm' : 'Not required');
+      } else if (automatic) {
+        setMasterValue(master, s.row, headers, 'Fee Status', 'Household fee on ' + primary);
+      }
+    }
+    setMasterValue(master, s.row, headers, 'Last Activity', new Date());
+    recalculateOperationalFields(master, s.row);
+  });
 }
 
 
@@ -701,20 +744,18 @@ function incomeEmail(ss, r, kind) {
 
   const households = readObjects(portalSheet(ss, PORTAL.householdsSheet));
   const household = households.find(h => h['Household ID'] === cleanValue(r['Household ID'])) || {};
-  const draft = readObjects(portalSheet(ss, PORTAL.draftsSheet)).find(d => d['Student Key'] === cleanValue(r['Student Key'])) || {};
-  const first = cleanValue(draft['Student First Name']) || 'your student';
   const to = familyRecipients(household['Account Email'], household, r['Guardian Email']);
   const base = { greeting: cleanValue(r['Guardian First Name']) || household['Guardian First Name'], button: 'View your portal',
     brycId: r['BRYC ID'], householdId: r['Household ID'] };
   if (kind === 'verified') {
     return sendFamilyEmail(ss, 'Income verified', to, Object.assign(base, {
-      subject: `${first}'s income verification is complete`,
-      lines: [`Thank you for sending your income verification. We've finished our review, and there's nothing else you need to do.`]
+      subject: 'Your household income verification is complete',
+      lines: [`Thank you for sending your household income verification. We've finished our review, and there's nothing else you need to do.`]
     }));
   }
   return sendFamilyEmail(ss, 'Income follow-up', to, Object.assign(base, {
-    subject: `We need a little more information for ${first}'s income verification`,
-    lines: ['Thank you for sending your income verification. To finish our review, we need a little more information:', cleanValue(r['Note to Family']),
+    subject: 'We need a little more information for your household income verification',
+    lines: ['Thank you for sending your household income verification. To finish our review, we need a little more information:', cleanValue(r['Note to Family']),
       'Sign in to your BRYC portal and open "Verify household income" to send it.']
   }));
 }
@@ -809,6 +850,7 @@ function sendStatusEmails(ss, onlyRows) {
   const rows = readObjects(master);
   const households = readObjects(portalSheet(ss, PORTAL.householdsSheet));
   const labels = familyLabels(ss);
+  const askedHouseholds = new Set();
 
   rows.forEach((m, i) => {
 
@@ -846,12 +888,14 @@ function sendStatusEmails(ss, onlyRows) {
 
     const incomeAsked = released && isAdmitted(decision) && normalizeText(m['Income Verification Required']) === 'yes';
     if (incomeAsked && isBlank(m['Income Request Sent']) && PORTAL.tasks.income.open) {
-      const sent = sendFamilyEmail(ss, 'Income verification request', to, Object.assign({}, base, {
-        subject: `One more step for ${first}: income verification`,
-        lines: [`To finish ${first}'s enrollment, we need to verify your household income.`,
+      // One request per household, even with more than one student admitted.
+      const alreadyAsked = askedHouseholds.has(householdId) || rows.some((o, j) => j !== i && cleanValue(o['Household ID']) === householdId && !isBlank(o['Income Request Sent']));
+      const sent = alreadyAsked || sendFamilyEmail(ss, 'Income verification request', to, Object.assign({}, base, {
+        subject: 'One more step: verify your household income',
+        lines: ['To finish enrollment, we need to verify your household income. We only need this once per household, even if more than one student is joining BRYC.',
           'Sign in to your BRYC portal and open "Verify household income." It takes a few minutes, and you can upload a photo of your document.']
       }));
-      if (sent) master.getRange(row, map[normalizeHeader('Income Request Sent')]).setValue(new Date());
+      if (sent) { askedHouseholds.add(householdId); master.getRange(row, map[normalizeHeader('Income Request Sent')]).setValue(new Date()); }
     }
   });
 }
