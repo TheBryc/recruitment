@@ -150,7 +150,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
 
   // 6. Onboarding: six steps, prefilled from the application, confirm and answer only what's new
   await admin({op: 'enable', task: 'onboarding'});
-  await admin({op: 'school', row: ['Thrive Academy', 'Thrive Academy', 'East Baton Rouge', '']});
+  await admin({op: 'school', row: ['Thrive Academy', 'Thrive Academy', 'East Baton Rouge', '', 'Yes']});
   await page.reload(); await page.waitForTimeout(1500);
   await page.click('#student-list .task-list li:first-child button');
   ok(await page.isVisible('.task-form[data-task=onboarding]') && !(await page.isVisible('#task-submit')), 'onboarding wizard, no shared submit button');
@@ -214,6 +214,25 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(ob('School District') === 'Thrive Academy' && ob('School Parish') === 'East Baton Rouge', 'district and parish saved: ' + [ob('School District'), ob('School Parish')]);
   ok(ob('Changed From Application') === 'Student Phone; Parish', 'changes flagged for staff: ' + ob('Changed From Application'));
   ok(s.mails.some(m => m.subject === "We received Jordan's onboarding form"), 'confirmation email sent right away');
+
+  // 6b. Transportation: opens after onboarding, starts from the onboarding answers
+  const trButton = '#student-list .task-list li:nth-child(2) button';
+  await page.click(trButton);
+  ok(await page.isVisible('.task-form[data-task=transportation]'), 'transportation form');
+  const trSum = (await page.textContent('.tr-form .confirm-summary')).replace(/\s+/g, ' ');
+  ok(trSum.includes('Jordan Sample') && trSum.includes('Thrive Academy') && trSum.includes('Casey Sample') && !(await page.isVisible('[name=trFirst]')), 'transportation prefilled: ' + trSum);
+  await page.check('input[name=trRide][value=yes]');
+  ok((await page.textContent('#tr-route')).includes('BRYC runs a route from Thrive Academy'), 'route note: ' + await page.textContent('#tr-route'));
+  ok((await page.textContent('#tr-period')) === 'August 1, 2027 – July 31, 2028', 'authorization dates for the program year');
+  await page.click('#task-submit');
+  ok((await page.textContent('#task-message')).includes('highlighted'), 'waiver and signature required');
+  await page.check('[name=trAgree]'); await page.fill('[name=trSignature]', 'Casey Sample');
+  await shot('06e-transportation');
+  await page.click('#task-submit');
+  await page.waitForFunction(() => document.querySelector('.view.active')?.id === 'portal', null, {timeout: 8000}).catch(() => {});
+  s = await admin(); const TR = s.sheets.TRANSPORTATION_RAW, tr = h => TR[1][TR[0].indexOf(h)];
+  ok(TR.length === 2 && tr('Needs BRYC Transportation') === 'Yes' && tr('School Has Route') === 'Yes' && tr('Student First Name') === 'Jordan', 'transportation row: ' + [tr('Needs BRYC Transportation'), tr('School Has Route')]);
+  ok(s.mails.some(m => m.subject === "We received Jordan's transportation form"), 'transportation confirmation sent');
 
   // 7. Add a second student, then sign out
   await page.click('#add-student');

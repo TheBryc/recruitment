@@ -16,7 +16,7 @@ export const HEADERS = {
   INCOME_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Guardian First Name', 'Guardian Last Name', 'Guardian Email', 'Guardian Phone', 'Document Type', 'Filed Separately', 'Document 1', 'Document 2', 'Notes', 'Verified AGI', 'Verification Result', 'Verified By', 'Verified Date', 'Document Deleted Date'],
   ONBOARDING_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Accepts Admission', 'Decline Reason', 'Student Preferred First Name', 'Guardian Signature'],
   TRANSPORTATION_RAW: ['Timestamp', 'BRYC ID', 'Household ID', 'Student Key', 'Needs BRYC Transportation', 'Guardian Signature'],
-  SCHOOLS: ['School', 'School District', 'School Parish', 'Notes']
+  SCHOOLS: ['School', 'School District', 'School Parish', 'Notes', 'Transportation Route']
 };
 
 // LISTS columns the portal reads for family-facing wording.

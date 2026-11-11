@@ -387,16 +387,80 @@
 <div class="wizard-actions"><button class="btn btn-secondary" id="ob-back" type="button">← Back</button><button class="btn btn-primary" id="ob-next" type="button">Continue →</button></div>
 <div aria-live="polite" class="notice" id="ob-notice" role="status"></div>
 </form>
-<form class="task-form" data-task="transportation" hidden="" novalidate="">
+<form class="task-form tr-form" data-task="transportation" hidden="" novalidate="">
 <h2>Reserve transportation</h2>
-<p>BRYC provides bus or van transportation from most schools to our campuses after school. BRYC does not provide transportation home. Guardians must pick up Fellows at 7:15 pm.</p>
-<div class="form-grid">
-<label class="wide">Will your student ride BRYC transportation from school?<select name="trNeeds" required="" data-col="Needs BRYC Transportation"><option value="">Select one</option><option>Yes</option><option>No, we will provide transportation</option><option>No, my student drives</option></select></label>
-<label>Student's school<input maxlength="150" name="trSchool" required="" data-col="Student School"/></label>
-<label>School dismissal time<input name="trDismissal" type="time" data-col="School Dismissal Time"/></label>
-<label class="wide">Anything else we should know? <span class="optional">(optional)</span><textarea maxlength="800" name="trNotes" rows="3" data-col="Notes"></textarea></label>
-<label class="wide">Guardian signature (type your first and last name)<input maxlength="120" name="trSignature" required="" data-col="Guardian Signature"/></label>
+<p>BRYC picks Fellows up from participating schools and brings them to their assigned campus. We do not provide transportation home.</p>
+
+<section class="confirm-card" data-confirm="">
+<div class="confirm-head"><h3 class="part-title">Student and parent/guardian</h3><button class="inline-link confirm-toggle" type="button">Edit</button></div>
+<p class="confirm-note">From your onboarding form</p>
+<dl class="confirm-summary"></dl>
+<div class="form-grid confirm-fields">
+<label>Student first name<input maxlength="80" name="trFirst" required="" data-col="Student First Name" data-sum="Student"/></label>
+<label>Student last name<input maxlength="80" name="trLast" required="" data-col="Student Last Name" data-join="trFirst" data-join-sep=" "/></label>
+<label>Grade<select name="trGrade" required="" data-col="Grade in Program Year" data-sum="Grade"><option value="">Select one</option><option>8th grade</option><option>9th grade</option><option>10th grade</option><option>11th grade</option><option>12th grade</option></select></label>
+<label>School<input maxlength="150" name="trSchool" required="" list="tr-school-list" autocomplete="off" data-col="School" data-sum="School"/></label>
+<datalist id="tr-school-list"></datalist>
+<label>Parent/guardian first name<input maxlength="80" name="trGuardianFirst" required="" data-col="Guardian First Name" data-sum="Parent/guardian"/></label>
+<label>Parent/guardian last name<input maxlength="80" name="trGuardianLast" required="" data-col="Guardian Last Name" data-join="trGuardianFirst" data-join-sep=" "/></label>
+<label>Mobile phone (for pickup texts)<input name="trGuardianPhone" required="" type="tel" data-col="Guardian Phone" data-sum="Mobile phone"/></label>
+<label>Email<input maxlength="254" name="trGuardianEmail" required="" type="email" data-col="Guardian Email" data-sum="Email"/></label>
 </div>
+</section>
+
+<fieldset class="field-block plain" data-required-radio="trRide"><legend class="question-title">Will your student ride BRYC transportation from school to campus?</legend><div class="role-choice"><label class="choice"><input name="trRide" type="radio" value="yes" data-col="Needs BRYC Transportation" data-label="Yes" data-reveal="#tr-yes"/><span>Yes</span></label><label class="choice"><input name="trRide" type="radio" value="no" data-col="Needs BRYC Transportation" data-label="No, we'll get them to campus" data-reveal="#tr-yes"/><span>No, we’ll get them to campus</span></label></div></fieldset>
+
+<div hidden="" id="tr-yes">
+<div class="tr-route" id="tr-route" role="status"></div>
+
+<h3 class="part-title">How it works</h3>
+<ul class="tr-list">
+<li>We pick Fellows up from participating schools and bring them to their assigned campus. We do not provide transportation home.</li>
+<li>Routes depend on school location, enrollment, and capacity, and can change during the year.</li>
+<li>We need at least five Fellows from the same school to consider a new route, so smaller schools may not always be served.</li>
+<li>Once you sign up, we add your mobile number to BRYC’s texting line for pickup times, locations, changes, and delays.</li>
+</ul>
+
+<h3 class="part-title">Transportation rules</h3>
+<details class="tr-rule"><summary>Boarding and pickup</summary><ul>
+<li>Fellows must be at their pickup location on time. There is a 5-minute grace period for boarding.</li>
+<li>Buses will not return once they leave.</li>
+<li>Before your student’s first ride, we’ll text you their pickup time and location.</li>
+<li>If a Fellow misses the bus, BRYC will not come back for them unless there is an emergency or mechanical issue.</li>
+</ul></details>
+<details class="tr-rule"><summary>Behavior on the bus or van</summary><ul>
+<li>Follow driver instructions right away.</li>
+<li>Stay seated at all times, and keep all body parts inside the vehicle.</li>
+<li>Use appropriate volume and language (no profanity or vulgar language).</li>
+<li>Keep hands to yourself. No fighting.</li>
+<li>No eating or drinking.</li>
+<li>Van riders must wear seatbelts at all times.</li>
+</ul></details>
+<details class="tr-rule"><summary>Communication and attendance</summary><ul>
+<li>Pickup times, locations, schedule changes, delays, and emergencies are shared through BRYC’s texting line.</li>
+<li>On early-dismissal days, BRYC monitors school calendars and lets families know ahead of time.</li>
+<li>If your student won’t ride on a scheduled day, let BRYC know by text or call, or send a message through the texting line.</li>
+<li>Attendance is taken every day.</li>
+</ul></details>
+<details class="tr-rule"><summary>Discipline and absences</summary><ul>
+<li>First offense: warning. Second offense: 2-week transportation suspension. Third offense: semester or full-year suspension, decided by the Director of Operations.</li>
+<li>Three unexcused absences (no notice ahead of time) means a Fellow loses transportation. Reinstatement requires BRYC approval and a $30 non-refundable fee per semester.</li>
+</ul></details>
+
+<h3 class="part-title">Authorization to Transport Fellow</h3>
+<div class="tr-waiver" tabindex="0" aria-label="Authorization to Transport Fellow">
+<p>To ensure BRYC is meeting safety guidelines and transparency with schools, Guardians must consent to allow BRYC to provide transportation to their Fellow. This document uses <strong>Student</strong> and <strong>Fellow</strong> interchangeably. This authorization is valid <strong id="tr-period">for the program year</strong>.</p>
+<p><strong>Consent to transport.</strong> I authorize the Baton Rouge Youth Coalition, Inc. to transport my Fellow in a company bus or van, driven by an individual or organization authorized by the Baton Rouge Youth Coalition, Inc. I understand my Fellow is expected to follow all policies and procedures regarding the organization’s code of conduct and riding in a motor vehicle, and to follow the directions of the licensed driver, staff, and/or volunteer aboard the vehicle, who has passed a state background check.</p>
+<p><strong>Policies discussed with my Fellow.</strong> I have read, understand, and discussed with my Fellow: (1) my Fellow will travel in a motor vehicle driven by an adult and will remain seated during travel; (2) my Fellow is expected to listen to supervising staff/driver and respect staff, other Fellows, the vehicles, and the people they travel with; (3) riding in a motor vehicle may result in personal injury or death from wrecks, collisions, or acts by riders, other drivers, or objects; and (4) my Fellow will not be disruptive to the driver.</p>
+<p>I recognize that participation in this activity, as with any activity involving motor vehicle transportation, may risk personal injury or permanent loss to my Fellow. I attest and verify that I have been advised of the potential risks, that I have full knowledge of those risks, and that I assume any expenses incurred in the event of an accident, illness, or other incapacity, regardless of whether I have authorized such expenses.</p>
+<p>As a condition for the transportation received, I, for myself, my Fellow, my executors, and assigns, further agree to release and forever discharge the Baton Rouge Youth Coalition, Inc. and its agents, officers, employees, and volunteers from any claim that I might have myself or bring on my Fellow’s behalf regarding any damages, demands, or actions whatsoever, including those based on negligence, in any manner arising out of this transportation.</p>
+<p>I have read this entire waiver and authorization form, I fully understand its terms and conditions, and I agree to be legally bound by its terms.</p>
+</div>
+<label class="checkline"><input name="trAgree" required="" type="checkbox" value="Yes - agreed to be legally bound" data-col="Authorization Agreed"/> I have read the Authorization to Transport in full and, as the Fellow’s parent/guardian, I agree to be legally bound by its terms.</label>
+<label>Parent/guardian signature (type your first and last name)<input maxlength="120" name="trSignature" required="" data-col="Guardian Signature"/></label>
+</div>
+
+<label>Anything else we should know? <span class="optional">(optional)</span><textarea maxlength="800" name="trNotes" rows="3" data-col="Notes"></textarea></label>
 </form>
 <div aria-live="polite" class="notice" id="task-message" role="status"></div>
 <button class="btn btn-primary full" id="task-submit" type="button">Submit</button>

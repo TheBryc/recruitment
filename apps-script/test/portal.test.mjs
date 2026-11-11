@@ -336,6 +336,54 @@ test('current-year applicants: onboarding confirms the grade they gave on the ap
   assert.equal(pre['Grade in Program Year'], '10th grade');
 });
 
+test('transportation opens after onboarding, starts from it, and records the route', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  sheets.SCHOOLS.appendRow(['Thrive Academy', 'Thrive Academy', 'East Baton Rouge', '', 'Yes']);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  let tr = casey('load').state.students[0].tasks.find(t => t.key === 'transportation');
+  assert.equal(tr.open, false);
+  assert.equal(tr.waiting, 'After onboarding');
+  assert.match(casey('submitTask', {studentKey, task: 'transportation', fields: {'Needs BRYC Transportation': 'Yes'}}).error, /not open yet/);
+
+  casey('submitTask', {studentKey, task: 'onboarding', fields: {'Accepts Admission': 'Yes, we accept', 'Guardian Phone': '2255550888', 'School': 'Thrive Academy'}});
+  tr = casey('load').state.students[0].tasks.find(t => t.key === 'transportation');
+  assert.equal(tr.open, true);
+  assert.equal(tr.prefill['Guardian Phone'], '2255550888', 'the onboarding answer wins');
+  assert.equal(tr.prefill['Student First Name'], 'Jordan');
+  assert.equal(tr.period, 'August 1, 2027 – July 31, 2028');
+  assert.deepEqual(tr.schools, [['Thrive Academy', 1]]);
+
+  assert.match(casey('submitTask', {studentKey, task: 'transportation', fields: {'Needs BRYC Transportation': 'Yes', 'School': 'Thrive Academy'}}).error, /Authorization/);
+  const before = mails.length;
+  casey('submitTask', {studentKey, task: 'transportation', fields: Object.assign({}, tr.prefill, {'Needs BRYC Transportation': 'Yes',
+    'Authorization Agreed': 'Yes - agreed to be legally bound', 'Guardian Signature': 'Casey Sample'})});
+  const H = sheets.TRANSPORTATION_RAW.rows[0], row = sheets.TRANSPORTATION_RAW.rows[1], col = h => row[H.indexOf(h)];
+  assert.equal(col('School Has Route'), 'Yes');
+  assert.equal(col('Authorization Period'), 'August 1, 2027 – July 31, 2028');
+  assert.equal(col('Guardian Phone'), '2255550888');
+  const M = sheets.MASTER.rows[0];
+  assert.equal(sheets.MASTER.rows[1][M.indexOf('Transportation')], 'Riding from Thrive Academy');
+  assert.match(mails[before].subject, /transportation form/);
+  assert.match(mails[before].body, /texting line/);
+  assert.equal(casey('load').state.students[0].tasks.find(t => t.key === 'transportation').done, true);
+});
+
+test('transportation: a school without a route is logged as a request; "no" skips the waiver', () => {
+  vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  const {casey, studentKey} = submitted();
+  setMaster(2, 'Decision', 'Admitted'); setMaster(2, 'Decision Released', true);
+  casey('submitTask', {studentKey, task: 'onboarding', fields: {'Accepts Admission': 'Yes, we accept'}});
+  const before = mails.length;
+  casey('submitTask', {studentKey, task: 'transportation', fields: {'Needs BRYC Transportation': "No, we'll get them to campus", 'School': 'Thrive Academy',
+    'Authorization Agreed': 'Yes'}});
+  const H = sheets.TRANSPORTATION_RAW.rows[0], row = sheets.TRANSPORTATION_RAW.rows[1], col = h => row[H.indexOf(h)];
+  assert.equal(col('Authorization Agreed'), '');
+  const M = sheets.MASTER.rows[0];
+  assert.equal(sheets.MASTER.rows[1][M.indexOf('Transportation')], 'Not riding');
+  assert.match(mails[before].body, /won't need BRYC transportation/);
+});
+
 test('siblings live under one household with their own statuses', () => {
   const {casey} = submitted();
   const {studentKey: k2} = casey('saveDraft', {answers: {}, fields: {'Student First Name': 'Riley', 'Student Last Name': 'Sample'}});

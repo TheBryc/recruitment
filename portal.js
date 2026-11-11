@@ -393,7 +393,7 @@ function taskList(s) {
     el('ul', {class: 'task-list'}, s.tasks.map(t => {
       let action;
       if (t.done) action = el('span', {class: 'task-state done', text: 'Done'});
-      else if (!t.open) action = el('span', {class: 'task-state', text: 'Opens soon'});
+      else if (!t.open) action = el('span', {class: 'task-state', text: t.waiting || 'Opens soon'});
       else action = el('button', {class: 'btn btn-secondary', type: 'button', text: 'Start', onclick: () => { taskCtx = {student: s, key: t.key}; go('task'); }});
       return el('li', {class: t.done ? 'done' : ''},
         el('div', {}, el('strong', {text: t.title}), t.status && !t.done ? el('small', {text: t.status}) : null), action);
@@ -550,6 +550,7 @@ function renderTask() {
     const prefill = {incGuardianFirst: 'Guardian First Name', incGuardianLast: 'Guardian Last Name', incGuardianEmail: 'Guardian Email', incGuardianPhone: 'Guardian Phone'};
     Object.entries(prefill).forEach(([name, col]) => { if (hh[col]) setField(f, name, hh[col]); });
     if (key === 'onboarding') startOnboarding(f, (student.tasks || []).find(t => t.key === 'onboarding') || {});
+    if (key === 'transportation') startTransportation(f, (student.tasks || []).find(t => t.key === 'transportation') || {});
   });
   // Onboarding has its own Back/Continue buttons; the other forms use the single Submit.
   $('#task-submit').hidden = key === 'onboarding';
@@ -572,21 +573,56 @@ function startOnboarding(form, task) {
   obSchools = {};
   (task.schools || []).forEach(([name, district, parish]) => { obSchools[name.toLowerCase().trim()] = {district, parish}; });
   $('#ob-school-list').replaceChildren(...(task.schools || []).map(([name]) => el('option', {value: name})));
+  applyPrefill(form, prefill);
+  syncReveals(form); syncShows(form); syncSecondGuardianAsk(form); syncSchool(form);
+  $('#ob-decline').hidden = true;
+  startCards(form, prefill, 'From your application');
+  obStep = 0; showObStep(form);
+}
+
+function applyPrefill(form, prefill) {
   Object.entries(prefill).forEach(([col, value]) => {
     const control = form.querySelector(`[data-col="${CSS.escape(col)}"]`);
     if (control) setField(form, control.name, value);
   });
-  syncReveals(form); syncShows(form); syncSecondGuardianAsk(form); syncSchool(form);
-  $('#ob-decline').hidden = true;
+}
+
+// Prefilled sections show as summaries; a section with a missing answer opens on its own.
+function startCards(form, prefill, source) {
   form.querySelectorAll('[data-confirm]').forEach(card => {
     const known = [...card.querySelectorAll('.confirm-fields [data-col]')].some(c => prefill[c.dataset.col]);
     const gap = !!missingIn(card), note = card.querySelector('.confirm-note');
     note.hidden = !known;
-    note.textContent = gap ? 'From your application. Please fill in what’s missing.' : 'From your application';
+    note.textContent = gap ? `${source}. Please fill in what’s missing.` : source;
     card.classList.toggle('has-prefill', known);
     setEditing(card, !known || gap);
   });
-  obStep = 0; showObStep(form);
+}
+
+/* ---------- transportation ---------- */
+
+let trRoutes = {};
+
+function startTransportation(form, task) {
+  trRoutes = {};
+  (task.schools || []).forEach(([name, route]) => { trRoutes[name.toLowerCase().trim()] = !!route; });
+  $('#tr-school-list').replaceChildren(...(task.schools || []).map(([name]) => el('option', {value: name})));
+  $('#tr-period').textContent = task.period || 'for the program year';
+  applyPrefill(form, task.prefill || {});
+  syncReveals(form);
+  startCards(form, task.prefill || {}, 'From your onboarding form');
+  syncRoute(form);
+}
+
+// Tells the family right away whether their school has a route.
+function syncRoute(form) {
+  const school = form.elements.trSchool.value.trim(), box = $('#tr-route');
+  if (!school) { box.textContent = ''; box.className = 'tr-route'; return; }
+  const route = trRoutes[school.toLowerCase()];
+  box.className = 'tr-route ' + (route ? 'has-route' : 'no-route');
+  box.textContent = route
+    ? `Good news: BRYC runs a route from ${school}.`
+    : `${school} doesn’t have a BRYC route right now. If you sign up, we’ll review your request. We can’t promise a route, but we review every request.`;
 }
 
 // A school on the SCHOOLS list fills its district and parish; any other school asks for them.
@@ -716,8 +752,13 @@ function renderSummary(card) {
 }
 
 function initOnboarding() {
+  const tr = $('.task-form[data-task="transportation"]');
+  if (tr) {
+    tr.elements.trSchool.addEventListener('input', () => syncRoute(tr));
+    tr.addEventListener('change', e => { if (e.target.name === 'trSchool') syncRoute(tr); });
+  }
   const form = $('.task-form[data-task="onboarding"]'); if (!form) return;
-  form.querySelectorAll('[data-confirm]').forEach(card => card.querySelector('.confirm-toggle').addEventListener('click', () => {
+  $$('.task-form [data-confirm]').forEach(card => card.querySelector('.confirm-toggle').addEventListener('click', () => {
     if (!card.classList.contains('is-editing')) {
       setEditing(card, true);
       card.querySelector('.confirm-fields input:not([type=radio]), .confirm-fields select')?.focus({preventScroll: true});
@@ -752,6 +793,7 @@ function initTasks() {
     if (!taskCtx) return;
     const form = $(`.task-form[data-task="${taskCtx.key}"]`), msg = $('#task-message'), b = $('#task-submit');
     const first = forms().formErrors(form);
+    openFlagged(form);
     if (first) { msg.textContent = 'Please fix the highlighted questions.'; first.focus({preventScroll: true}); first.scrollIntoView({behavior: 'smooth', block: 'center'}); return; }
     let files;
     try { files = await forms().collectFiles(form); } catch (err) { msg.textContent = err.message; return; }
