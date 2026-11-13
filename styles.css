@@ -656,7 +656,7 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .footer-privacy{color:#8f8da3}
 .footer-inner{flex-wrap:wrap}
 /* How to apply: key dates */
-.key-dates{border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:14px;padding:16px 20px;margin:0 0 32px;background:#fff;max-width:820px}
+.key-dates{border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:14px;padding:16px 20px;margin:0 0 16px;background:#fff;color:var(--ink)}
 .key-dates h3{margin:0 0 6px;font-size:1rem}
 .key-dates ul{margin:0;padding-left:1.1em;color:var(--ink-2)}
 .key-dates li{margin:4px 0}
