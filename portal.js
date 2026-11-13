@@ -400,10 +400,12 @@ function studentCard(s) {
   const stage = STAGE_INDEX[s.stage] ?? 0;
   const first = s.firstName || 'your student';
   const pillClass = s.stage === 'decision' ? 'pill decision-' + (s.decision || '').toLowerCase().replace(/[^a-z]+/g, '-') : 'pill stage-' + s.stage;
+  // Once onboarding is complete, an admitted student is officially a BRYC Fellow.
+  const fellow = s.decision === 'Admitted' && (s.tasks || []).some(t => t.key === 'onboarding' && t.done);
   const card = el('article', {class: 'student-card', 'data-student': s.studentKey},
     el('div', {class: 'student-card-head'},
       el('h3', {text: studentName(s)}),
-      el('span', {class: pillClass, text: s.stage === 'decision' ? s.decision : s.status})),
+      el('span', {class: pillClass, text: fellow ? 'BRYC Fellow' : s.stage === 'decision' ? s.decision : s.status})),
     el('p', {class: 'student-meta', text: [s.programYear && fmtYear(s.programYear) + ' school year', s.submittedAt ? 'Submitted ' + fmtDate(s.submittedAt) : s.updated && 'Last saved ' + fmtDate(s.updated)].filter(Boolean).join(' · ')}),
     el('ol', {class: 'progress', 'aria-label': 'Application progress'},
       STAGES.map((label, i) => el('li', {class: i < stage ? 'done' : i === stage ? 'current' : '', 'aria-current': i === stage ? 'step' : false, text: label}))));
@@ -416,9 +418,11 @@ function studentCard(s) {
   } else if (s.stage === 'review') {
     card.append(el('p', {text: `Our team is reviewing ${first}'s application. We will email you when a decision is ready.`}));
   } else {
-    const text = DECISION_TEXT[s.decision];
-    card.append(el('p', {class: 'decision-text', text: text ? text(first) : 'Decision: ' + s.decision}));
     const steps = (s.tasks || []).filter(t => t.key !== 'income');
+    const text = fellow
+      ? `${first} is now a BRYC Fellow.` + (steps.some(t => !t.done) ? ' Please complete any additional forms below.' : '')
+      : DECISION_TEXT[s.decision] ? DECISION_TEXT[s.decision](first) : 'Decision: ' + s.decision;
+    card.append(el('p', {class: 'decision-text', text}));
     if (steps.length) card.append(taskList(s, steps));
   }
   return card;

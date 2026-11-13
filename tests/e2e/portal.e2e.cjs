@@ -225,6 +225,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(ob('School District') === 'Thrive Academy' && ob('School Parish') === 'East Baton Rouge', 'district and parish saved: ' + [ob('School District'), ob('School Parish')]);
   ok(ob('Changed From Application') === 'Student Phone; Parish', 'changes flagged for staff: ' + ob('Changed From Application'));
   ok(s.mails.some(m => m.subject === "We received Jordan's onboarding form"), 'confirmation email sent right away');
+  let card = await page.textContent('#student-list');
+  ok(card.includes('Jordan is now a BRYC Fellow. Please complete any additional forms below.') && card.includes('BRYC Fellow') && !card.includes('Congratulations'),
+    'after onboarding: Jordan is a BRYC Fellow, with transportation still to do');
+  await shot('06d-fellow');
 
   // 6b. Transportation: opens after onboarding, starts from the onboarding answers
   const trButton = '#student-list .task-list li:nth-child(2) button';
@@ -244,6 +248,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   s = await admin(); const TR = s.sheets.TRANSPORTATION_RAW, tr = h => TR[1][TR[0].indexOf(h)];
   ok(TR.length === 2 && tr('Needs BRYC Transportation') === 'Yes' && tr('School Has Route') === 'Yes' && tr('Student First Name') === 'Jordan', 'transportation row: ' + [tr('Needs BRYC Transportation'), tr('School Has Route')]);
   ok(s.mails.some(m => m.subject === "We received Jordan's transportation form"), 'transportation confirmation sent');
+  card = await page.textContent('#student-list');
+  ok(card.includes('Jordan is now a BRYC Fellow.') && !card.includes('Please complete any additional forms'), 'all forms done: no request for more forms');
 
   // 7. Add a second student, then sign out
   await page.click('#add-student');
