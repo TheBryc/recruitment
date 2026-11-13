@@ -112,7 +112,7 @@ applicationWindows: [
 - When no year is open, the Apply page says applications are closed and gives the next opening date.
 - The server enforces the dates too, so an application can't be submitted after a deadline, even from a page left open.
 
-**Each year:** add the next school year's row, update the "Key dates" on the home page and in the FAQs (`index.html`), then paste Portal.gs and deploy a new version.
+**Each year:** add the next school year's row, update the "Key dates" on the home page and in the FAQs (`index.html`), and update the deadline lines under the hero's Start your application button (`data-deadlines` in `index.html`; each line shows through its `until` date). Then paste Portal.gs and deploy a new version.
 
 ## Get more info (interest form)
 

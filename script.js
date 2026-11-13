@@ -90,6 +90,13 @@ $$('[data-swipe]').forEach(row=>{
   track.style.setProperty('--ticker-shift',w+'px');track.style.setProperty('--ticker-time',Math.round(w/40)+'s');t.classList.add('is-moving');};
  fill();document.fonts?.ready.then(fill);let r;addEventListener('resize',()=>{clearTimeout(r);r=setTimeout(fill,200);});
  document.addEventListener('bryc:view',()=>setTimeout(fill,0));})();
+// Deadline under the hero's Start button: show the first line in data-deadlines whose
+// "until" date (Central time) hasn't passed. After the last one, hide it.
+(()=>{const d=$('#hero-deadline');if(!d)return;
+ try{const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(today))return;
+  const line=JSON.parse(d.dataset.deadlines).find(x=>today<=x.until);
+  if(line)d.textContent=line.text;else{d.hidden=true;$('[aria-describedby="hero-deadline"]')?.removeAttribute('aria-describedby');}}catch(e){}})();
 // On-page Back: return to the previous page in the site, or home if the visitor arrived here directly.
 $$('[data-back]').forEach(n=>n.addEventListener('click',()=>{if(movedInSite)history.back();else view('home');}));
 // Interest form: one submission captures the student and, when they know it, a parent/guardian.
