@@ -586,11 +586,12 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Three hero buttons sit in one row on desktop */
 .hero-wrap .actions{gap:10px}
 .hero-wrap .actions .btn{padding:11px 18px;min-height:46px;font-size:.95rem}
-/* Deadline line under Start your application. It wraps to the button's width instead of widening it. */
-.hero-wrap .actions{align-items:flex-start}
-.hero-cta{display:flex;flex-direction:column}
-.hero-deadline{width:0;min-width:100%;margin:8px 0 0;font-size:.85rem;font-weight:600;line-height:1.35;text-align:center;white-space:pre-line;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
-@media(max-width:600px){.hero-cta{width:100%}}
+/* Application dates under the hero buttons: label on top, date below, raspberry rule on the left. */
+.hero-dates{display:flex;flex-wrap:wrap;gap:14px 32px;margin:22px 0 0;padding:0}
+.hero-dates>div{border-left:3px solid var(--pink);padding:1px 0 1px 12px}
+.hero-dates dt{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.82);margin:0 0 3px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.hero-dates dd{margin:0;font-weight:700;font-size:1.02rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+@media(max-width:600px){.hero-dates{flex-direction:column;gap:10px;margin-top:18px}}
 
 /* Onboarding: each section shows what we already know, with Edit to change it */
 .confirm-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0;background:#fff}
