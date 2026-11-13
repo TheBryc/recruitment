@@ -68,8 +68,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(await page.isChecked('#application-demo input[name=secondGuardian][value=yes]') && await page.inputValue('#application-demo [name=g2First]') === 'Morgan'
     && await page.isChecked('#application-demo input[name=g2Different][value=yes]') && await page.inputValue('#application-demo [name=g2Zip]') === '70791', 'second guardian prefilled on the application');
   ok(await page.evaluate(() => !document.querySelector('#g2-fields').hidden && !document.querySelector('#g2-address').hidden), 'second guardian sections open on the application');
-  ok(await page.evaluate(() => [...document.querySelector('[name=academicYear]').options].filter(o => o.value).map(o => o.value).join()) === '2026-2027,2027-2028', 'both open years offered');
-  ok(await page.inputValue('#application-demo [name=academicYear]') === '', 'no year picked for them when two are open');
+  ok(await page.evaluate(() => [...document.querySelector('[name=academicYear]').options].filter(o => o.value).map(o => o.value).join()) === '2027-2028', 'only the open year is offered (March 1, 2027)');
+  ok(await page.inputValue('#application-demo [name=academicYear]') === '2027-2028', 'the one open year is picked for them');
   let s = await admin(); ok(s.sheets.HOUSEHOLDS[1][0] === 'HH-0001' && s.sheets.HOUSEHOLDS[1][6] === 'Other: Godmother', 'household row saved: ' + s.sheets.HOUSEHOLDS[1].slice(0, 7));
 
   // 3. Fill the application and autosave
@@ -225,6 +225,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok(ob('School District') === 'Thrive Academy' && ob('School Parish') === 'East Baton Rouge', 'district and parish saved: ' + [ob('School District'), ob('School Parish')]);
   ok(ob('Changed From Application') === 'Student Phone; Parish', 'changes flagged for staff: ' + ob('Changed From Application'));
   ok(s.mails.some(m => m.subject === "We received Jordan's onboarding form"), 'confirmation email sent right away');
+  let card = await page.textContent('#student-list');
+  ok(card.includes('Jordan is now a BRYC Fellow. Please complete any additional forms below.') && card.includes('BRYC Fellow') && !card.includes('Congratulations'),
+    'after onboarding: Jordan is a BRYC Fellow, with transportation still to do');
+  await shot('06d-fellow');
 
   // 6b. Transportation: opens after onboarding, starts from the onboarding answers
   const trButton = '#student-list .task-list li:nth-child(2) button';
@@ -244,6 +248,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   s = await admin(); const TR = s.sheets.TRANSPORTATION_RAW, tr = h => TR[1][TR[0].indexOf(h)];
   ok(TR.length === 2 && tr('Needs BRYC Transportation') === 'Yes' && tr('School Has Route') === 'Yes' && tr('Student First Name') === 'Jordan', 'transportation row: ' + [tr('Needs BRYC Transportation'), tr('School Has Route')]);
   ok(s.mails.some(m => m.subject === "We received Jordan's transportation form"), 'transportation confirmation sent');
+  card = await page.textContent('#student-list');
+  ok(card.includes('Jordan is now a BRYC Fellow.') && !card.includes('Please complete any additional forms'), 'all forms done: no request for more forms');
 
   // 7. Add a second student, then sign out
   await page.click('#add-student');
@@ -259,6 +265,22 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.fill('#signin-form [name=password]', 'password1'); await page.click('#signin-form button[type=submit]');
   await page.waitForSelector('#portal-body:not([hidden])'); ok(await active() === 'portal', 'sign in returns to portal');
   ok((await page.textContent('#nav-portal')) === 'My portal', 'nav says My portal');
+
+  // Application calendar: closed between cycles, and closed to rising seniors after April 30
+  await admin({op: 'clock', value: '2027-01-25T12:00:00-06:00'});
+  await page.reload(); await page.waitForSelector('#portal-body:not([hidden])');
+  await page.click('#add-student'); await page.waitForTimeout(300);
+  ok(await page.isVisible('#apply-closed') && !(await page.isVisible('#apply .wizard-wrap')), 'between cycles: the Apply page says applications are closed');
+  ok((await page.textContent('#apply-closed')).includes('Applications for the 2027–2028 school year open February 1, 2027.'), 'closed message names the next opening date');
+  await shot('09-applications-closed');
+  await admin({op: 'clock', value: '2027-05-10T12:00:00-06:00'});
+  await page.goto(BASE + '#portal'); await page.reload(); await page.waitForSelector('#portal-body:not([hidden])');
+  await page.click('#add-student'); await page.waitForTimeout(300);
+  ok(!(await page.isVisible('#apply-closed')) && await page.isVisible('#apply .wizard-wrap'), 'open again for 2027-2028');
+  const twelve = await page.$eval('[name=futureGrade] option[value="12"]', o => ({disabled: o.disabled, text: o.textContent}));
+  ok(twelve.disabled && twelve.text.includes('closed April 30, 2027'), 'after April 30: 12th grade is unavailable: ' + twelve.text);
+  await admin({op: 'clock', value: '2027-03-01T12:00:00-06:00'});
+  await page.goto(BASE + '#portal'); await page.reload(); await page.waitForSelector('#portal-body:not([hidden])');
 
   // Mobile screenshot
   await page.setViewportSize({width: 390, height: 844}); await page.waitForTimeout(300); await shot('07-portal-mobile');

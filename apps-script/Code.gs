@@ -136,6 +136,13 @@ function doPost(e) {
       fields['Thank-You Sent'] = new Date();
     }
 
+    // Referral: thank the person who referred the student.
+    if (payload.form === 'referral') {
+      ensureHeader(sheet, 'Thank-You Sent');
+      sendReferralEmail(SpreadsheetApp.getActiveSpreadsheet(), fields);
+      fields['Thank-You Sent'] = new Date();
+    }
+
     appendByHeader(sheet, fields);
 
     return jsonResponse({ ok: true });

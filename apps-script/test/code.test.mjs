@@ -198,3 +198,15 @@ test('interest form: without an information sheet link, the email points to the 
   assert.match(mails[0].body, /Start an application: https:\/\/thebryc.github.io\/recruitment\/#apply/);
   assert.doesNotMatch(mails[0].body, /information sheet/);
 });
+
+test('referral: the person who referred the student gets a thank-you right away', () => {
+  submit(referral);
+  const m = mails.find(x => x.subject === 'Thank you for referring Jordan Sample to BRYC');
+  assert.ok(m, 'thank-you sent before processing');
+  assert.equal(m.to, 'pat@school.org');
+  assert.match(m.htmlBody, /Hi Pat,/);
+  assert.match(m.body, /Our admissions team will reach out to Jordan and their family/);
+  assert.match(m.body, /Refer another student: https:\/\/thebryc.github.io\/recruitment\/#refer/);
+  ctx.processPending();
+  assert.equal(mails.filter(x => /Thank you for referring/.test(x.subject)).length, 1, 'not sent twice');
+});

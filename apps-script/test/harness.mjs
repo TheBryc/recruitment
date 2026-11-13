@@ -81,7 +81,9 @@ export function createEnv() {
     Utilities: {
       base64Decode: d => Buffer.from(d, 'base64'), newBlob: (bytes, type, name) => ({bytes, type, name}),
       DigestAlgorithm: {SHA_256: 'sha256'}, computeDigest: (alg, s) => [...createHash(alg).update(s).digest()],
-      base64EncodeWebSafe: bytes => Buffer.from(bytes).toString('base64url'), getUuid: () => randomUUID()
+      base64EncodeWebSafe: bytes => Buffer.from(bytes).toString('base64url'), getUuid: () => randomUUID(),
+      formatDate: (date, tz, fmt) => { if (fmt !== 'yyyy-MM-dd') throw new Error('harness formatDate only knows yyyy-MM-dd');
+        return new Intl.DateTimeFormat('en-CA', {timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'}).format(date); }
     },
     DriveApp: { getFolderById: folder => ({ createFile: blob => { savedFiles.push(Object.assign({folder}, blob)); return { getUrl: () => 'https://drive/' + blob.name, getSize: () => blob.bytes.length }; } }) },
     UrlFetchApp: { fetch: (url, opts) => {
@@ -95,5 +97,7 @@ export function createEnv() {
   };
   vm.createContext(ctx);
   for (const file of ['../Code.gs', '../Portal.gs']) vm.runInContext(readFileSync(new URL(file, import.meta.url), 'utf8'), ctx);
+  // Tests run on March 1, 2027 unless they set another day with PORTAL.clock.
+  vm.runInContext("PORTAL.clock = '2027-03-01T12:00:00-06:00'", ctx);
   return {sheets, ctx, savedFiles, mails, props};
 }

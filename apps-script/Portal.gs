@@ -21,6 +21,7 @@ const PORTAL = {
 
   portalUrl: 'https://thebryc.github.io/recruitment/#portal',
   applyUrl: 'https://thebryc.github.io/recruitment/#apply',
+  referUrl: 'https://thebryc.github.io/recruitment/#refer',
   senderName: 'BRYC Admissions',
   replyTo: 'admissions@thebryc.org',
   helpLine: 'If you have questions, reply to this email or call or text Mr. Forrest at (225) 283-1083.',
@@ -28,8 +29,14 @@ const PORTAL = {
   householdPrefix: 'HH-',
   maxDraftChars: 45000,
 
-  // Program years families can apply for. Keep in step with portal-config.js.
-  openProgramYears: ['2026-2027', '2027-2028'],
+  // When each school year takes applications (Central time, whole days).
+  // opens/closes are the first and last days; seniorsClose is the last day for
+  // students who will be in 12th grade that year. Add next year's row here.
+  applicationWindows: [
+    { year: '2026-2027', opens: '2026-08-01', closes: '2027-01-22' },
+    { year: '2027-2028', opens: '2027-02-01', closes: '2027-06-15', seniorsClose: '2027-04-30' }
+  ],
+  timeZone: 'America/Chicago',
 
   // Follow-up forms. A closed form shows as "opens soon" in the portal.
   tasks: {
@@ -237,8 +244,14 @@ function portalSubmitApplication(ss, user, payload) {
   const studentKey = cleanValue(payload.studentKey);
   const fields = cleanPayloadFields(payload.fields);
 
-  if (!PORTAL.openProgramYears.includes(fields['Program Year'])) {
-    throw new PortalError('Applications for that school year are closed.');
+  const windows = applicationWindows();
+  if (!windows.open.includes(fields['Program Year'])) {
+    throw new PortalError('Applications for that school year are closed.'
+      + (windows.next ? ` Applications for the ${displayYear(windows.next.year)} school year open ${windows.next.opens}.` : ''));
+  }
+  const seniors = windows.seniorsClosed.find(s => s.year === fields['Program Year']);
+  if (seniors && /^12/.test(cleanValue(fields['Grade in Program Year']))) {
+    throw new PortalError(`Applications from rising seniors for the ${displayYear(seniors.year)} school year closed ${seniors.closed}.`);
   }
 
   const missing = CONFIG.forms.application.required.filter(h => isBlank(fields[h]));
@@ -430,8 +443,9 @@ function updateMasterAfterTask(ss, brycId, taskKey, fields, now) {
 function portalState(ss, user) {
 
   const household = findHousehold(ss, user);
+  const windows = applicationWindows();
   const state = { account: { email: user.email, verified: user.verified }, household: household, students: [],
-    openProgramYears: PORTAL.openProgramYears };
+    openProgramYears: windows.open, seniorsClosed: windows.seniorsClosed, nextOpening: windows.next };
   if (!household) return state;
 
   const drafts = readObjects(portalSheet(ss, PORTAL.draftsSheet))
@@ -914,6 +928,56 @@ function familyRecipients(accountEmail, household, applicationGuardianEmail) {
 // comes from the script property INFO_SHEET_URL (a Drive or website link), so it
 // can change without touching the code. Without it, the email points to the
 // application instead.
+function sendReferralEmail(ss, fields) {
+
+  try {
+    const to = familyRecipients(pick(fields, ['Referrer Email']), null, '');
+    const student = [pick(fields, ['Student First Name']), pick(fields, ['Student Last Name'])].map(cleanValue).filter(Boolean).join(' ') || 'this student';
+    const first = cleanValue(pick(fields, ['Student First Name'])) || 'the student';
+    sendFamilyEmail(ss, 'Referral received', to, {
+      subject: `Thank you for referring ${student} to BRYC`,
+      greeting: cleanValue(pick(fields, ['Referrer First Name'])),
+      lines: [`Thank you for referring ${student} to BRYC. Our admissions team will reach out to ${first} and their family.`,
+        'Know another student who would be a good fit? You can refer them anytime.'],
+      button: 'Refer another student',
+      buttonUrl: PORTAL.referUrl
+    });
+  } catch (err) {
+    console.error('Referral email failed: ' + err.message);
+  }
+}
+
+
+// Today's date in Central time as yyyy-MM-dd. PORTAL.clock overrides it in tests.
+function portalToday() {
+
+  return Utilities.formatDate(PORTAL.clock ? new Date(PORTAL.clock) : new Date(), PORTAL.timeZone, 'yyyy-MM-dd');
+}
+
+
+// Which school years are open today, which have closed to rising seniors, and
+// the next year to open (for the "applications are closed" message).
+function applicationWindows() {
+
+  const today = portalToday();
+  const open = PORTAL.applicationWindows.filter(w => today >= w.opens && today <= w.closes);
+  const next = PORTAL.applicationWindows.filter(w => w.opens > today).sort((a, b) => (a.opens < b.opens ? -1 : 1))[0];
+  return {
+    open: open.map(w => w.year),
+    seniorsClosed: open.filter(w => w.seniorsClose && today > w.seniorsClose).map(w => ({ year: w.year, closed: longDate(w.seniorsClose) })),
+    next: next ? { year: next.year, opens: longDate(next.opens) } : null
+  };
+}
+
+
+// 2027-02-01 -> February 1, 2027
+function longDate(iso) {
+
+  const [y, m, d] = iso.split('-').map(Number);
+  return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m - 1] + ' ' + d + ', ' + y;
+}
+
+
 function sendInquiryEmail(ss, response, brycId) {
 
   try {

@@ -12,6 +12,7 @@ http.createServer((req, res) => {
         if (a.op === 'process') env.ctx.processPending();
         if (a.op === 'set') env.sheets.MASTER.set(a.row, HEADERS.MASTER.indexOf(a.header) + 1, a.value);
         if (a.op === 'enable') require_enable(a.task);
+        if (a.op === 'clock') vm.runInContext(`PORTAL.clock = ${JSON.stringify(a.value)}`, env.ctx);
         if (a.op === 'school') env.sheets.SCHOOLS.appendRow(a.row);
         return send(res, 200, {ok: true, sheets: Object.fromEntries(Object.entries(env.sheets).map(([k, s]) => [k, s.rows])), mails: env.mails, files: env.savedFiles.map(f => ({folder: f.folder, name: f.name}))});
       }
