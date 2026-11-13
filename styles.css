@@ -586,12 +586,15 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Three hero buttons sit in one row on desktop */
 .hero-wrap .actions{gap:10px}
 .hero-wrap .actions .btn{padding:11px 18px;min-height:46px;font-size:.95rem}
-/* Application dates under the hero buttons: label on top, date below, raspberry rule on the left. */
-.hero-dates{display:flex;flex-wrap:wrap;gap:14px 32px;margin:22px 0 0;padding:0}
-.hero-dates>div{border-left:3px solid var(--pink);padding:1px 0 1px 12px}
-.hero-dates dt{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.82);margin:0 0 3px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
-.hero-dates dd{margin:0;font-weight:700;font-size:1.02rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6)}
-@media(max-width:600px){.hero-dates{flex-direction:column;gap:10px;margin-top:18px}}
+/* Hero: the three buttons stacked at one width, a divider, then the application dates. */
+.hero-cta{display:flex;align-items:stretch;gap:28px}
+.hero-wrap .hero-buttons{flex-direction:column;flex-wrap:nowrap;gap:10px}
+.hero-buttons .btn{width:100%}
+.hero-dates{display:flex;flex-direction:column;justify-content:center;gap:18px;margin:0;padding:0 0 0 28px;border-left:1px solid rgba(255,255,255,.5)}
+.hero-dates dt{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.82);margin:0 0 4px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.hero-dates dd{margin:0;font-weight:700;font-size:1.05rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* Phones: full-width buttons, then the dates under a line. */
+@media(max-width:600px){.hero-cta{flex-direction:column;gap:20px}.hero-dates{padding:18px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.5);gap:12px}}
 
 /* Onboarding: each section shows what we already know, with Edit to change it */
 .confirm-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0;background:#fff}
