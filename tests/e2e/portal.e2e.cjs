@@ -129,11 +129,14 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   ok((await page.textContent('#household-summary')).includes('Morgan Sample (Father)'), 'summary shows second guardian');
   const list = await page.textContent('#student-list');
   ok(list.includes('Congratulations! Jordan has been admitted'), 'admitted message');
-  ok(list.includes('Opens soon') && list.includes('Start'), 'tasks: closed ones say opens soon, income has start');
+  ok(list.includes('Opens soon') && !/income/i.test(list), 'student card: onboarding and transportation only, no income');
+  const incomeBox = await page.textContent('#income-card');
+  ok(await page.isVisible('#income-card') && incomeBox.includes('For parents/guardians') && incomeBox.includes('This covers Jordan') && incomeBox.includes('Start'),
+    'income verification has its own box for parents/guardians: ' + incomeBox.replace(/\s+/g, ' '));
   await shot('05-portal-admitted');
 
   // 5. Income verification
-  await page.click('#student-list .task-list button');
+  await page.click('#income-card button');
   ok(await active() === 'task', 'task view open');
   ok(await page.isVisible('.task-form[data-task=income]') && !(await page.isVisible('.task-form[data-task=onboarding]')), 'income form shown alone');
   const incSum = (await page.textContent('.inc-form .confirm-summary')).replace(/\s+/g, ' ');
@@ -153,7 +156,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await page.click('#task-submit');
   await page.waitForFunction(() => document.querySelector('.view.active')?.id === 'portal', null, {timeout: 8000}).catch(() => {});
   ok((await page.textContent('#portal-flash')).includes('household income verification'), 'income flash');
-  ok((await page.textContent('#student-list')).includes('Done'), 'income shows done');
+  ok((await page.textContent('#income-card')).includes('Done') && (await page.textContent('#income-card')).includes('We received it'), 'income box shows done');
   s = await admin(); ok(s.sheets.INCOME_RAW.length === 2 && s.files.some(f => f.folder === 'income-folder'), 'income row + file in income folder');
 
   // 6. Onboarding: six steps, prefilled from the application, confirm and answer only what's new

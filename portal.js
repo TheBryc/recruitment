@@ -352,12 +352,48 @@ function initHousehold() {
 function renderStudents() {
   const list = $('#student-list'), add = $('#add-student');
   add.disabled = !state.household;
+  renderIncome();
   if (!state.students.length) {
     list.replaceChildren(el('div', {class: 'student-empty'},
       el('p', {text: state.household ? 'No applications yet. Start one for each student in your household.' : 'Save your household information first. Then you can start an application.'})));
     return;
   }
   list.replaceChildren(...state.students.map(studentCard));
+}
+
+// "Jordan", "Jordan and Riley", "Jordan, Riley, and Sam"
+const listNames = names => names.length < 3 ? names.join(' and ') : names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+
+// Income verification is done once per household by a parent/guardian, so it gets
+// its own box at the top of the portal instead of sitting under each student.
+function renderIncome() {
+  const box = $('#income-card'); if (!box) return;
+  const owners = (state?.students || []).filter(s => (s.tasks || []).some(t => t.key === 'income'));
+  if (!owners.length) { box.hidden = true; box.replaceChildren(); return; }
+  const taskOf = s => s.tasks.find(t => t.key === 'income');
+  const owner = owners.find(s => !taskOf(s).done) || owners[0], task = taskOf(owner);
+  const followUp = /more information/i.test(task.status || '');
+  let action, note;
+  if (task.done) {
+    action = el('span', {class: 'task-state done', text: 'Done'});
+    note = /verified|complete/i.test(task.status || '') ? 'Complete. There is nothing else you need to do.'
+      : "We received it. We'll email you when our review is complete or if we need anything else.";
+  } else if (task.open === false) {
+    action = el('span', {class: 'task-state', text: task.waiting || 'Opens soon'});
+  } else {
+    action = el('button', {class: 'btn btn-primary', type: 'button', text: followUp ? 'Send more information' : 'Start',
+      onclick: () => { taskCtx = {student: owner, key: 'income'}; go('task'); }});
+    note = followUp ? task.status : 'It takes a few minutes, and you can upload a photo of your document.';
+  }
+  box.replaceChildren(
+    el('span', {class: 'income-for', text: 'For parents/guardians'}),
+    el('div', {class: 'income-head'},
+      el('div', {},
+        el('h2', {id: 'income-card-title', text: 'Household income verification'}),
+        el('p', {text: `We verify income once per household. This covers ${listNames(owners.map(s => s.firstName || studentName(s)))}.`}),
+        note ? el('p', {class: followUp ? 'income-note attention' : 'income-note', text: note}) : null),
+      action));
+  box.hidden = false;
 }
 
 function studentCard(s) {
@@ -382,15 +418,16 @@ function studentCard(s) {
   } else {
     const text = DECISION_TEXT[s.decision];
     card.append(el('p', {class: 'decision-text', text: text ? text(first) : 'Decision: ' + s.decision}));
-    if (s.tasks?.length) card.append(taskList(s));
+    const steps = (s.tasks || []).filter(t => t.key !== 'income');
+    if (steps.length) card.append(taskList(s, steps));
   }
   return card;
 }
 
-function taskList(s) {
+function taskList(s, tasks) {
   return el('div', {class: 'tasks'},
     el('h4', {text: 'Next steps'}),
-    el('ul', {class: 'task-list'}, s.tasks.map(t => {
+    el('ul', {class: 'task-list'}, tasks.map(t => {
       let action;
       if (t.done) action = el('span', {class: 'task-state done', text: 'Done'});
       else if (!t.open) action = el('span', {class: 'task-state', text: t.waiting || 'Opens soon'});

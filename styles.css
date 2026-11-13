@@ -639,3 +639,13 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .inc-form .confirm-card{background:var(--surface);box-shadow:none}
 .inc-help{margin:4px 0 16px;padding:14px 16px;border-radius:12px;background:var(--surface);color:var(--ink)}
 .inc-followup{margin:0 0 18px;padding:14px 16px;border-radius:12px;background:var(--pink-soft);color:var(--pink-text);font-weight:600}
+/* Portal: household income verification, its own box for parents/guardians */
+.income-card{background:#fff;color:var(--ink);border:1px solid var(--line);border-left:5px solid var(--pink);border-radius:20px;padding:22px 26px;margin:0 0 26px;box-shadow:0 20px 60px rgba(22,22,22,.07)}
+.income-for{display:inline-block;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--pink-text);background:var(--pink-soft);border-radius:999px;padding:4px 10px;margin-bottom:10px}
+.income-head{display:flex;justify-content:space-between;align-items:center;gap:18px}
+.income-head h2{font-size:1.6rem;margin:0 0 6px}
+.income-head p{margin:0 0 4px;color:var(--ink-2)}
+.income-note{font-size:.92rem}
+.income-note.attention{color:var(--pink-text);font-weight:600}
+.income-head .btn{flex-shrink:0;min-height:44px;padding:9px 22px}
+@media(max-width:600px){.income-head{flex-direction:column;align-items:stretch}.income-card{padding:20px}}
