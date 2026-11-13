@@ -590,7 +590,9 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
    first date, and Get more info and Refer a student start where the second date starts. */
 .hero-wrap .hero-cta{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:22px 14px;align-items:start}
 .hero-cta>.btn{width:100%}
-.hero-more{display:flex;flex-wrap:wrap;gap:10px 14px}
+/* Starts where the second date's text starts: past its 3px rule and 12px padding. */
+.hero-more{display:flex;flex-wrap:wrap;gap:10px 12px;margin-left:15px}
+.hero-wrap .hero-more .btn{padding-left:16px;padding-right:16px}
 /* Application dates: label on top, date below, raspberry rule on the left. */
 .hero-dates{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:14px;margin:0;padding:0}
 .hero-dates>div:nth-child(2){grid-column:2}
@@ -598,7 +600,7 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .hero-dates>div{border-left:3px solid var(--pink);padding:1px 0 1px 12px}
 .hero-dates dt{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.82);margin:0 0 3px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
 .hero-dates dd{margin:0;font-weight:700;font-size:1.02rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6)}
-@media(max-width:600px){.hero-wrap .hero-cta{display:flex;flex-direction:column;align-items:stretch;gap:10px}.hero-more{flex-direction:column;gap:10px}.hero-dates{display:flex;flex-direction:column;gap:10px;margin-top:8px}}
+@media(max-width:600px){.hero-wrap .hero-cta{display:flex;flex-direction:column;align-items:stretch;gap:10px}.hero-more{flex-direction:column;gap:10px;margin-left:0}.hero-dates{display:flex;flex-direction:column;gap:10px;margin-top:8px}}
 
 /* Onboarding: each section shows what we already know, with Edit to change it */
 .confirm-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0;background:#fff}
