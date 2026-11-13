@@ -532,6 +532,8 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
   .support-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .paths-after{grid-template-columns:1fr}
 }
+/* Tablets: the page padding is 16px from 900px down, so the swipe row bleeds 16px to match. */
+@media(max-width:900px){.journey{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px;scroll-padding-left:16px}}
 /* Phones: one stage per screen with the next one peeking in, and the support cards
    swipe two at a time instead of stacking eight deep. */
 @media(max-width:700px){
@@ -584,6 +586,11 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 /* Three hero buttons sit in one row on desktop */
 .hero-wrap .actions{gap:10px}
 .hero-wrap .actions .btn{padding:11px 18px;min-height:46px;font-size:.95rem}
+/* Deadline line under Start your application. It wraps to the button's width instead of widening it. */
+.hero-wrap .actions{align-items:flex-start}
+.hero-cta{display:flex;flex-direction:column}
+.hero-deadline{width:0;min-width:100%;margin:8px 0 0;font-size:.85rem;font-weight:600;line-height:1.35;text-align:center;white-space:pre-line;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+@media(max-width:600px){.hero-cta{width:100%}}
 
 /* Onboarding: each section shows what we already know, with Edit to change it */
 .confirm-card{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:18px 0;background:#fff}
