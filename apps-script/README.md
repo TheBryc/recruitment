@@ -72,7 +72,7 @@ To review, open INCOME_RAW and fill in the student's row:
 
 **Onboarding starts from what we already know.** When the form opens, it fills in the student, address, school, parents/guardians, language, and income range from the household and the application. Each of those sections shows as a short summary with an Edit button, so families only read and confirm it. A section opens on its own if a required answer is missing. New questions (birthday, T-shirt size, health, permissions, signature) are the only ones left blank. ONBOARDING_RAW gets every answer, plus **Changed From Application**, which lists the columns the family corrected or filled in so staff know what to update in MASTER. Missing ONBOARDING_RAW columns are added automatically the first time a family submits.
 
-**Open program years** are listed in both `PORTAL.openProgramYears` (Portal.gs) and `openProgramYears` (portal-config.js). Keep them the same.
+**Open program years** come from the application dates in `Portal.gs`. See [Application dates](#application-dates).
 
 ### Portal setup (one time)
 
