@@ -96,6 +96,24 @@ To review, open INCOME_RAW and fill in the student's row:
    Then run any function from the editor and approve every permission Google lists. Without `script.external_request`, every portal request fails with "Something went wrong on our end," and the execution log says *You do not have permission to call UrlFetchApp.fetch*.
 6. **Deploy a new version.** **Deploy → Manage deployments → pencil → Version: New version → Deploy.** Google will ask you to approve two new permissions: sending email as you, and connecting to an external service (that's the sign-in check). The URL stays the same.
 
+## Application dates
+
+Each school year opens and closes on its own dates, set in `PORTAL.applicationWindows` near the top of `Portal.gs`:
+
+```js
+applicationWindows: [
+  { year: '2026-2027', opens: '2026-08-01', closes: '2027-01-22' },
+  { year: '2027-2028', opens: '2027-02-01', closes: '2027-06-15', seniorsClose: '2027-04-30' }
+],
+```
+
+- Dates are whole days in Central time. `closes` and `seniorsClose` are the last day to submit.
+- `seniorsClose` is the last day for students who will be in 12th grade that year. After it, 12th grade shows as closed on the application.
+- When no year is open, the Apply page says applications are closed and gives the next opening date.
+- The server enforces the dates too, so an application can't be submitted after a deadline, even from a page left open.
+
+**Each year:** add the next school year's row, update the "Key dates" on the home page and in the FAQs (`index.html`), then paste Portal.gs and deploy a new version.
+
 ## Get more info (interest form)
 
 The interest form has its own page (`#inquire`) and needs no account. Students or parents can fill it out. Only the student's name, school, grade, and how they heard about BRYC are required, plus at least one phone number or email for the student or a parent or guardian. Guardian details are optional because younger students often don't know them.

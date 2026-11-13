@@ -216,8 +216,15 @@ $$('[data-school-control]').forEach(initSchoolCombobox);
 window.BRYCForms={collectAnswers,collectFiles,formErrors,syncSchoolControl,OTHER};
 const app=$('#application-demo');if(!app)return;
 const year=app.elements.namedItem('academicYear'),currentGrade=app.elements.namedItem('currentGrade'),futureGrade=app.elements.namedItem('futureGrade');
-const openYears=(window.BRYC_PORTAL||{}).openProgramYears;
-if(Array.isArray(openYears))[...year.options].forEach(o=>{if(o.value&&!openYears.includes(o.value))o.remove();});
+// Which school years are open comes from RAM HQ (Portal.gs) when a family signs in.
+// A year that has closed to rising seniors keeps 12th grade visible but unavailable.
+const allYears=[...year.options].map(o=>[o.value,o.text]);let yearsKey='',seniorsClosed={};
+function syncSeniors(){const t=futureGrade.querySelector('option[value="12"]');if(!t)return;const closed=seniorsClosed[year.value];
+ t.disabled=!!closed;t.textContent=closed?`12th grade (applications closed ${closed})`:'12th grade';if(closed&&futureGrade.value==='12')futureGrade.value='';}
+function setOpenYears(open,seniors){const key=JSON.stringify([open,seniors]);if(key===yearsKey)return;yearsKey=key;
+ seniorsClosed={};(seniors||[]).forEach(s=>{seniorsClosed[s.year]=s.closed;});
+ const keep=year.value;year.replaceChildren(...allYears.filter(([v])=>!v||open.includes(v)).map(([v,t])=>new Option(t,v)));
+ year.value=open.includes(keep)?keep:'';if(!year.value&&year.options.length===2)year.selectedIndex=1;updateYear();}
 function updateYear(){
  const upcoming=year.value==='2027-2028',current=year.value==='2026-2027';
  [['upcoming-grade-field',upcoming],['current-school-field',current],['upcoming-school-field',upcoming]].forEach(([id,show])=>{
@@ -232,7 +239,7 @@ function updateYear(){
  currentGrade.querySelector('option[value="7"]').disabled=current;
  if(current&&currentGrade.value==='7')currentGrade.value='';
  const school=app.querySelector('[data-school-control="'+(upcoming?'futureSchool':'currentSchool')+'"]');if(school)syncSchoolControl(school);
- updateAcademic();clearErrors();
+ updateAcademic();clearErrors();syncSeniors();
 }
 function updateAcademic(){
  const g=Number((year.value==='2027-2028'?futureGrade:currentGrade).value);
@@ -318,6 +325,6 @@ function restore(a){resetApp();a=a||{};
   else el.value=v;});
  syncRelative();syncReveals();app.querySelectorAll('select[data-other],select[name="actTaken"]').forEach(el=>el.dispatchEvent(new Event('change')));
  step=0;showStep();clearErrors();}
-window.BRYCApp={form:app,serialize,restore,reset:resetApp};
+window.BRYCApp={form:app,serialize,restore,reset:resetApp,setOpenYears};
 document.dispatchEvent(new CustomEvent('bryc:app-ready'));
 })();

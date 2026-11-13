@@ -326,6 +326,7 @@ test('onboarding fills school district and parish from the SCHOOLS tab', () => {
 
 test('current-year applicants: onboarding confirms the grade they gave on the application', () => {
   vm.runInContext('PORTAL.tasks.onboarding.open = true', ctx);
+  vm.runInContext("PORTAL.clock = '2026-12-01T12:00:00-06:00'", ctx);  // 2026-2027 is open until January 22
   const {casey, studentKey} = familyWithDraft();
   const fields = Object.assign({}, appFields, {'Program Year': '2026-2027', 'Current Grade': '10th grade'});
   delete fields['Grade in Program Year'];
@@ -541,4 +542,30 @@ test('second guardian: saved on the household, cleared when removed, and copied 
   assert.equal(live('Guardian 2 Name'), 'Morgan Sample');
   assert.equal(live('Guardian 2 Relationship'), 'Father');
   assert.match(String(live('Guardian 2 Address')), /9 Oak St.*Zachary LA 70791/);
+});
+
+test('application calendar: each school year opens and closes on its dates', () => {
+  const at = day => { vm.runInContext(`PORTAL.clock = '${day}T12:00:00-06:00'`, ctx); return JSON.parse(vm.runInContext('JSON.stringify(applicationWindows())', ctx)); };
+  let w = at('2026-12-01');
+  assert.deepEqual(w.open, ['2026-2027']); assert.deepEqual(w.next, {year: '2027-2028', opens: 'February 1, 2027'});
+  w = at('2027-01-22'); assert.deepEqual(w.open, ['2026-2027'], 'open through the last day');
+  w = at('2027-01-25'); assert.deepEqual(w.open, []); assert.equal(w.next.opens, 'February 1, 2027');
+  w = at('2027-02-01'); assert.deepEqual(w.open, ['2027-2028']); assert.deepEqual(w.seniorsClosed, []);
+  w = at('2027-04-30'); assert.deepEqual(w.seniorsClosed, [], 'seniors can apply through April 30');
+  w = at('2027-05-01'); assert.deepEqual(w.seniorsClosed, [{year: '2027-2028', closed: 'April 30, 2027'}]);
+  w = at('2027-06-16'); assert.deepEqual(w.open, []); assert.equal(w.next, null);
+});
+
+test('application calendar: the server refuses closed years and late seniors, and the portal is told why', () => {
+  const {casey, studentKey} = familyWithDraft();
+  vm.runInContext("PORTAL.clock = '2027-01-25T12:00:00-06:00'", ctx);
+  const state = casey('load').state;
+  assert.deepEqual(state.openProgramYears, []); assert.deepEqual(state.nextOpening, {year: '2027-2028', opens: 'February 1, 2027'});
+  assert.match(casey('submitApplication', {studentKey, fields: appFields}).error, /closed\. Applications for the 2027–2028 school year open February 1, 2027/);
+
+  vm.runInContext("PORTAL.clock = '2027-05-10T12:00:00-06:00'", ctx);
+  assert.deepEqual(casey('load').state.seniorsClosed, [{year: '2027-2028', closed: 'April 30, 2027'}]);
+  const senior = Object.assign({}, appFields, {'Current Grade': '11th grade', 'Grade in Program Year': '12th grade'});
+  assert.match(casey('submitApplication', {studentKey, fields: senior}).error, /rising seniors for the 2027–2028 school year closed April 30, 2027/);
+  assert.equal(casey('submitApplication', {studentKey, fields: appFields}).ok, true, 'other grades can still apply');
 });

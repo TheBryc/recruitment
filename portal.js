@@ -90,7 +90,24 @@ async function api(action, data = {}) {
   return out;
 }
 
-function setState(next) { state = next; store(cacheKey(), state); renderPortal(); }
+function setState(next) { state = next; store(cacheKey(), state); renderPortal(); syncApplicationWindows(); }
+
+// Offer only the school years RAM HQ says are open today. When none are open,
+// the Apply page shows a closed message with the next opening date instead.
+function syncApplicationWindows() {
+  if (!state) return;
+  const open = state.openProgramYears || [], closed = !open.length;
+  const box = $('#apply-closed');
+  if (box) {
+    box.hidden = !closed;
+    $$('#apply .apply-guidance, #apply .wizard-wrap').forEach(n => { n.hidden = closed; });
+    const next = state.nextOpening;
+    $('#apply-closed-text').textContent = next
+      ? `Applications for the ${fmtYear(next.year)} school year open ${next.opens}.`
+      : 'Applications for the next school year will open soon.';
+  }
+  appApi()?.setOpenYears?.(open, state.seniorsClosed || []);
+}
 
 function flash(text) { const f = $('#portal-flash'); f.textContent = text; f.hidden = !text; }
 
@@ -566,6 +583,7 @@ async function submitApplication(msg, button) {
 function initApplication() {
   const form = appApi()?.form; if (!form || form.dataset.portalReady) return;
   form.dataset.portalReady = '1';
+  syncApplicationWindows();
   ['input', 'change'].forEach(type => form.addEventListener(type, e => { if (e.target.type !== 'file') saveSoon(); }));
   window.addEventListener('pagehide', () => { if (dirty) saveDraft().catch(() => {}); });
 }
