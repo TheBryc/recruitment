@@ -25,6 +25,7 @@ let pending = null;      // where to go once sign-in finishes
 let taskCtx = null;      // {student, key} for the open follow-up form
 let lastView = null;
 let wantApply = false;  // they asked to apply before saving a household
+let signupRole = null;   // 'student' or 'guardian', picked when creating the account
 
 const go = (name, fromHistory) => window.BRYCView ? window.BRYCView(name, fromHistory) : null;
 const activeView = () => $('.view.active')?.id || 'home';
@@ -47,6 +48,7 @@ const fmtDate = iso => { const d = iso ? new Date(iso) : null; return d && !isNa
 const fmtYear = y => String(y || '').replace('-', '–');
 const studentName = s => [s.firstName, s.lastName].filter(Boolean).join(' ') || 'New student';
 const cacheKey = () => user ? 'bryc-portal:' + user.uid : '';
+const roleKey = () => user ? 'bryc-role:' + user.uid : '';
 function store(key, value) { try { if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
 function recall(key) { try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch (e) { return null; } }
 
@@ -111,6 +113,17 @@ function syncApplicationWindows() {
 
 function flash(text) { const f = $('#portal-flash'); f.textContent = text; f.hidden = !text; }
 
+// 'family' (a parent/guardian), 'student', or null until they tell us. RAM HQ
+// knows once there's a household or a student application; before that, the
+// sign-up choice or an invitation decides.
+function accountRole() {
+  if (!state) return null;
+  if (state.role) return state.role;
+  if ((state.invites || []).length || recall('bryc-invite')) return 'family';
+  const picked = recall(roleKey()) || signupRole;
+  return picked === 'student' ? 'student' : picked === 'guardian' ? 'family' : null;
+}
+
 /* ---------- routing ---------- */
 
 // script.js asks this before opening a page, so signed-out visitors land on the
@@ -133,6 +146,13 @@ window.BRYCGuard = name => {
 // "Apply" with no student picked: open the one draft in progress, or start the
 // first application. Anything else goes to the portal so they can choose.
 function chooseApplication() {
+  const role = accountRole();
+  if (role === 'student') {
+    const a = state.application;
+    if (!a || ['editing', 'invited'].includes(a.status)) { loadStudentApp(a); return true; }
+    return false;
+  }
+  if (!role) return false;
   if (!state?.household) { wantApply = true; flash('Start by telling us about your household. Then you can begin an application.'); return false; }
   const drafts = state.students.filter(s => s.stage === 'draft');
   if (drafts.length === 1) { loadDraft(drafts[0]); return true; }
@@ -147,7 +167,14 @@ document.addEventListener('bryc:view', e => {
   if (name === 'task') renderTask();
   // Coming from Apply (or another signed-in page): new families need an account.
   // Coming from Sign in: returning families need the sign-in form.
-  if (name === 'account') showAuth(pending ? 'signup' : 'signin');
+  if (name === 'account') {
+    showAuth(pending || recall('bryc-invite') ? 'signup' : 'signin');
+    // Opened from a student's invitation: they're the parent/guardian.
+    if (recall('bryc-invite')) {
+      const pick = $('#signup-form [name="role"][value="guardian"]'); if (pick) { pick.checked = true; syncRoleNote(); }
+      $('#account-message').textContent = "To finish your student's application, create an account or sign in with the email address the invitation was sent to.";
+    }
+  }
   lastView = name;
 });
 
@@ -172,8 +199,11 @@ function initAccount() {
   const msg = $('#account-message');
   const fail = (form, text) => { msg.textContent = text; };
 
+  $$('#signup-form [name="role"]').forEach(r => r.addEventListener('change', syncRoleNote));
   $('#signup-form').addEventListener('submit', async e => {
     e.preventDefault(); const form = e.target, b = form.querySelector('[type="submit"]');
+    const role = form.querySelector('[name="role"]:checked')?.value;
+    if (!role) { fail(form, 'Please choose whether you are a student or a parent/guardian.'); form.querySelector('[name="role"]').focus(); return; }
     const first = forms().formErrors(form);
     const pw = form.elements.password, confirm = form.elements.confirm;
     if (first) { fail(form, 'Please fix the highlighted questions.'); first.focus(); return; }
@@ -182,9 +212,13 @@ function initAccount() {
     if (!A) { fail(form, "The portal couldn't load. Please refresh the page and try again."); return; }
     busy(b, true, 'Creating your account…');
     try {
+      signupRole = role;
       const cred = await A.createUserWithEmailAndPassword(auth, form.elements.email.value.trim(), pw.value);
-      await sendVerification(cred.user);
-      form.reset();
+      store('bryc-role:' + cred.user.uid, role);
+      // Students never submit, so only parents/guardians confirm their email. A
+      // parent/guardian with an invitation link confirms it by using the link.
+      if (role !== 'student' && !recall('bryc-invite')) await sendVerification(cred.user);
+      form.reset(); syncRoleNote(); renderPortal();
     } catch (err) { fail(form, authMessage(err)); }
     busy(b, false);
   });
@@ -215,6 +249,11 @@ function initAccount() {
   });
 }
 
+function syncRoleNote() {
+  const role = $('#signup-form [name="role"]:checked')?.value || '';
+  $$('#signup-form [data-role-note]').forEach(n => { n.hidden = n.dataset.roleNote !== role; });
+}
+
 async function sendVerification(u) {
   const url = location.origin + location.pathname + '#portal';
   try { await A.sendEmailVerification(u, {url}); }
@@ -226,13 +265,139 @@ async function sendVerification(u) {
 function renderPortal() {
   const loading = $('#portal-loading'), body = $('#portal-body');
   $('#portal-account').textContent = user ? 'Signed in as ' + user.email : '';
-  $('#portal-verify').hidden = !user || user.emailVerified;
+  const role = accountRole();
+  $('#portal-verify').hidden = !user || user.emailVerified || !!state?.account?.verified || role === 'student' || !!recall('bryc-invite');
   if (!state) { loading.hidden = false; body.hidden = true; return; }
   loading.hidden = true; body.hidden = false;
-  const hh = state.household;
-  $('#portal-title').textContent = hh ? 'Welcome back.' : 'Welcome to your portal.';
+  body.dataset.mode = role === 'student' ? 'student' : role ? 'family' : 'choose';
+  $('#role-card').hidden = !!role;
+  const hh = state.household, first = state.application?.firstName;
+  $('#portal-title').textContent = role === 'student' ? (first ? `Hi, ${first}.` : 'Welcome to your portal.') : hh ? 'Welcome back.' : 'Welcome to your portal.';
+  renderInvites();
+  renderStudentHome(role === 'student');
+  if (role !== 'family') return;
   renderHousehold(hh);
   renderStudents();
+}
+
+/* ---------- students' own applications ---------- */
+
+const STUDENT_STAGES = ['Your part', 'Sent to parent/guardian', 'Parent/guardian finishing', 'Submitted'];
+const STUDENT_STAGE = {editing: 0, invited: 1, guardian: 2, submitted: 3};
+
+function renderStudentHome(show) {
+  const box = $('#student-home'); box.hidden = !show;
+  if (!show) { box.replaceChildren(); return; }
+  const a = state.application, g = a?.invite;
+  const who = g ? [g.firstName, g.lastName].filter(Boolean).join(' ') : 'your parent/guardian';
+  const open = () => { loadStudentApp(a); go('apply'); };
+  let title, text; const actions = [];
+  if (!a) {
+    title = 'Start your application';
+    text = "Fill in your information, upload your most recent report card, and answer three short questions. When you finish your part, you'll send it to your parent/guardian to add their information and sign.";
+    actions.push(['Start your application', 'btn-primary', open]);
+  } else if (a.status === 'editing') {
+    title = 'Your application';
+    text = 'Your answers save as you go. When you finish your part, send it to your parent/guardian to add their information and sign.';
+    actions.push(['Continue your application', 'btn-primary', open]);
+  } else if (a.status === 'invited') {
+    title = `Sent to ${who}`;
+    text = `We emailed ${who} at ${g.email}${g.sentAt ? ' on ' + fmtDate(g.sentAt) : ''}. They'll add their information, review your application, and sign it. You can still make changes until they open it.`;
+    actions.push(['Make changes or resend', 'btn-secondary', open]);
+  } else if (a.status === 'guardian') {
+    title = `${who} is finishing your application`;
+    text = "They'll add their information, sign, and submit it. We'll email you when it's submitted.";
+  } else {
+    title = 'Application submitted';
+    text = `Your application for the ${fmtYear(a.programYear)} school year was submitted${a.submittedAt ? ' on ' + fmtDate(a.submittedAt) : ''}. We'll keep your parent/guardian updated by email and in their BRYC portal.`;
+  }
+  const stage = a ? STUDENT_STAGE[a.status] ?? 0 : 0;
+  box.replaceChildren(
+    el('h2', {text: title}),
+    el('ol', {class: 'progress', 'aria-label': 'Application progress'},
+      STUDENT_STAGES.map((label, i) => el('li', {class: i < stage ? 'done' : i === stage ? 'current' : '', 'aria-current': i === stage ? 'step' : false, text: label}))),
+    el('p', {text}),
+    a && a.status !== 'submitted' ? el('p', {class: 'student-home-note', text: 'Unfinished applications are kept until July 31 of the school year they are for.'}) : null,
+    actions.length ? el('div', {class: 'student-home-actions'}, actions.map(([t, c, fn]) => el('button', {class: 'btn ' + c, type: 'button', text: t, onclick: fn}))) : null);
+}
+
+// Open a student's own application (or a new one) in student mode.
+function loadStudentApp(a) {
+  current = a ? a.studentKey : 'new';
+  if (a) appApi().restore(a.answers || {}); else appApi().reset();
+  appApi().setMode('student'); appApi().setSavedFiles(a?.savedUploads || {});
+  const hf = $('#handoff-form').elements, g = a?.invite || {};
+  hf.inviteFirst.value = g.firstName || ''; hf.inviteLast.value = g.lastName || ''; hf.inviteEmail.value = g.email || '';
+  const sent = $('#handoff-sent'); sent.hidden = !a?.invite;
+  if (a?.invite) sent.textContent = `You sent this to ${g.email}${g.sentAt ? ' on ' + fmtDate(g.sentAt) : ''}. Sending it again emails them a new link.`;
+  setDraftHead('Your application', a?.updated ? 'Saved' : '');
+}
+
+// The student's last step: save everything, upload their documents, and email
+// their parent/guardian a link to finish.
+async function sendToGuardian(msg, button) {
+  const box = $('#student-handoff'), hf = $('#handoff-form').elements;
+  const first = forms().formErrors(box);
+  if (first) { msg.textContent = "Please add your parent/guardian's name and email."; first.focus(); return; }
+  const email = hf.inviteEmail.value.trim();
+  if (email.toLowerCase() === String(user?.email || '').toLowerCase()) {
+    msg.textContent = "Please use your parent/guardian's own email address, not yours."; hf.inviteEmail.focus(); return;
+  }
+  button.disabled = true; msg.textContent = 'Sending your application to your parent/guardian…';
+  try {
+    dirty = true; clearTimeout(saveTimer);
+    await saveDraft();
+    const answers = appApi().serialize(), files = await forms().collectFiles(appApi().form);
+    await api('inviteGuardian', {answers, files,
+      fields: {'Student First Name': answers.studentFirst || '', 'Student Last Name': answers.studentLast || '', 'Program Year': answers.academicYear || ''},
+      guardian: {'First Name': hf.inviteFirst.value.trim(), 'Last Name': hf.inviteLast.value.trim(), Email: email}});
+    current = null; appApi().reset(); setDraftHead('', ''); msg.textContent = ''; button.disabled = false;
+    go('portal');
+    flash(`We emailed ${hf.inviteFirst.value.trim() || 'your parent/guardian'} at ${email}. They'll add their information and sign your application.`);
+  } catch (err) {
+    msg.textContent = err.message; button.disabled = false;
+    msg.scrollIntoView({behavior: 'smooth', block: 'center'});
+  }
+}
+
+/* ---------- invitations from students ---------- */
+
+function renderInvites() {
+  const box = $('#invite-list'), list = state?.invites || [];
+  box.hidden = !list.length || accountRole() === 'student';
+  if (box.hidden) { box.replaceChildren(); return; }
+  box.replaceChildren(...list.map(inv => el('article', {class: 'invite-card'},
+    el('div', {},
+      el('strong', {text: `${studentName(inv)} asked you to finish their BRYC application`}),
+      el('p', {text: state.household ? 'Add your information, review it, and sign. Their short responses stay in their own words.'
+        : 'Save your household information first. Then you can open it.'})),
+    state.household ? el('button', {class: 'btn btn-primary', type: 'button', text: 'Review and finish', onclick: e => acceptInvite(inv.studentKey, e.currentTarget)}) : null)));
+}
+
+// Opening the invitation link proves this is the parent/guardian's inbox. From the
+// portal card, RAM HQ asks for a confirmed email instead.
+async function acceptInvite(studentKey, button) {
+  const token = recall('bryc-invite');
+  if (button) busy(button, true, 'Opening…');
+  try {
+    const out = await api('acceptInvite', token ? {token} : {studentKey});
+    store('bryc-invite', null);
+    const s = state.students.find(x => x.studentKey === out.studentKey);
+    if (s && s.stage === 'draft') { loadDraft(s); go('apply'); flash(''); }
+  } catch (err) {
+    // Signed in with the wrong email: keep the link so the right account can use it.
+    if (!/was sent to/.test(err.message)) store('bryc-invite', null);
+    flash(err.message);
+  }
+  if (button) busy(button, false);
+}
+
+// After sign-in (or saving a new household), open the application an invitation link was for.
+async function acceptFromLink() {
+  if (!recall('bryc-invite') || !state) return;
+  if (state.role === 'student') { store('bryc-invite', null); flash('That invitation is for a parent/guardian. Please sign out, then sign in with the email address it was sent to.'); return; }
+  if (!state.household) { flash("Add your household information below. Then we'll open your student's application."); return; }
+  await acceptInvite('', null);
 }
 
 const HOUSEHOLD_INPUTS = {
@@ -360,7 +525,8 @@ function initHousehold() {
       await api('saveHousehold', {fields: forms().collectAnswers(form)});
       editingHousehold = false; renderPortal();
       flash(isNew ? 'Household saved. You can start an application now.' : 'Household updated.');
-      if (isNew && wantApply) { wantApply = false; if (chooseApplication()) go('apply'); }
+      if (isNew && recall('bryc-invite')) await acceptFromLink();
+      else if (isNew && wantApply) { wantApply = false; if (chooseApplication()) go('apply'); }
     } catch (err) { msg.textContent = err.message; }
     busy(b, false);
   });
@@ -427,8 +593,11 @@ function studentCard(s) {
     el('ol', {class: 'progress', 'aria-label': 'Application progress'},
       STAGES.map((label, i) => el('li', {class: i < stage ? 'done' : i === stage ? 'current' : '', 'aria-current': i === stage ? 'step' : false, text: label}))));
 
-  if (s.stage === 'draft') {
-    card.append(el('p', {text: 'Your answers save as you go. Documents need to be attached again before you submit.'}),
+  if (s.stage === 'draft' && s.fromStudent) {
+    card.append(el('p', {text: `${first} started this application. Add your information, review it, and sign to submit. ${first}'s short responses stay in their own words.`}),
+      el('button', {class: 'btn btn-primary', type: 'button', text: 'Review and finish', onclick: () => { loadDraft(s); go('apply'); }}));
+  } else if (s.stage === 'draft') {
+    card.append(el('p', {text: 'Your answers save as you go. Documents need to be attached again before you submit. Unfinished applications are kept until July 31 of the school year they are for.'}),
       el('button', {class: 'btn btn-primary', type: 'button', text: 'Continue application', onclick: () => { loadDraft(s); go('apply'); }}));
   } else if (s.stage === 'received') {
     card.append(el('p', {text: `We received ${first}'s application. We will email you when it moves forward.`}));
@@ -460,6 +629,7 @@ function taskList(s, tasks) {
 
 function initPortal() {
   $('#portal-signout').addEventListener('click', signOut);
+  $$('[data-pick-role]').forEach(b => b.addEventListener('click', () => { store(roleKey(), b.dataset.pickRole); renderPortal(); }));
   $('#nav-signout').addEventListener('click', () => { $('.topbar nav')?.classList.remove('show'); signOut(); });
   $('#add-student').addEventListener('click', () => { if (!state?.household) return; loadNew(); go('apply'); });
   $('#verify-resend').addEventListener('click', async e => {
@@ -507,6 +677,8 @@ function loadNew() {
 
 function loadDraft(s) {
   current = s.studentKey; appApi().restore(s.answers || {});
+  // A student-started application: the student's own answers stay locked.
+  appApi().setMode(s.fromStudent ? 'finish' : 'family'); appApi().setSavedFiles(s.savedUploads || {});
   const form = appApi().form, hh = state?.household || {};
   Object.entries(APP_FROM_HOUSEHOLD).forEach(([name, col]) => { if (hh[col] && !form.elements.namedItem(name)?.value) setField(form, name, hh[col]); });
   syncReveals(form);
@@ -536,11 +708,12 @@ async function saveDraft() {
   const key = current;
   saving = (async () => {
     try {
-      const out = await api('saveDraft', {studentKey: key === 'new' ? '' : key, answers,
+      const asStudent = accountRole() === 'student';
+      const out = await api('saveDraft', {studentKey: key === 'new' ? '' : key, answers, role: asStudent ? 'student' : undefined,
         fields: {'Student First Name': answers.studentFirst || '', 'Student Last Name': answers.studentLast || '', 'Program Year': answers.academicYear || ''}});
       if (key === 'new' && current === 'new') current = out.studentKey;
       pill.textContent = 'Saved';
-      updateLocalDraft(out.studentKey, answers);
+      if (asStudent) updateLocalStudent(out.studentKey, answers); else updateLocalDraft(out.studentKey, answers);
     } catch (err) {
       dirty = true; pill.textContent = 'Not saved yet'; pill.classList.add('error'); pill.title = err.message; throw err;
     } finally { saving = null; }
@@ -558,12 +731,20 @@ function updateLocalDraft(key, answers) {
   store(cacheKey(), state); renderPortal();
 }
 
+function updateLocalStudent(key, answers) {
+  if (!state) return;
+  state.role = 'student';
+  state.application = Object.assign(state.application || {status: 'editing'}, {studentKey: key, answers,
+    firstName: answers.studentFirst || '', lastName: answers.studentLast || '', programYear: answers.academicYear || '', updated: new Date().toISOString()});
+  store(cacheKey(), state); renderPortal();
+}
+
 async function submitApplication(msg, button) {
   button.disabled = true;
   msg.textContent = 'Submitting your application. This can take a few seconds.';
   try {
     await refreshVerified();
-    if (!user.emailVerified) throw new Error(`Please confirm your email address before submitting. Check ${user.email} for the link we sent, then come back to this page.`);
+    if (!user.emailVerified && !state?.account?.verified) throw new Error(`Please confirm your email address before submitting. Check ${user.email} for the link we sent, then come back to this page.`);
     dirty = true; clearTimeout(saveTimer);
     await saveDraft();
     if (!current || current === 'new') throw new Error("We couldn't save this application. Please check the student's name and try again.");
@@ -588,7 +769,7 @@ function initApplication() {
   window.addEventListener('pagehide', () => { if (dirty) saveDraft().catch(() => {}); });
 }
 
-window.BRYCPortal = {get active() { return !!user && !!current; }, submitApplication};
+window.BRYCPortal = {get active() { return !!user && !!current; }, submitApplication, sendToGuardian};
 
 /* ---------- follow-up forms ---------- */
 
@@ -924,7 +1105,7 @@ function setNav() {
 async function signOut() {
   if (dirty) await saveDraft().catch(() => {});
   store(cacheKey(), null);
-  current = null; taskCtx = null; state = null; pending = null;
+  current = null; taskCtx = null; state = null; pending = null; signupRole = null;
   appApi()?.reset(); setDraftHead('', '');
   try { await A.signOut(auth); } catch (e) {}
   go('home');
@@ -949,6 +1130,7 @@ async function onUser(u) {
     if (state && chooseApplication()) go('apply', firstTime); else { go('portal', firstTime); applyAfterLoad = !state; }
   } else if (target) go(target, firstTime);
   await loadPortal();
+  if (recall('bryc-invite')) { await acceptFromLink(); return; }
   if (applyAfterLoad && activeView() === 'portal' && chooseApplication()) go('apply', true);
 }
 
@@ -967,6 +1149,11 @@ async function loadPortal() {
 }
 
 async function start() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('invite')) {
+    store('bryc-invite', params.get('invite')); params.delete('invite');
+    history.replaceState(history.state, '', location.pathname + (params.toString() ? '?' + params : '') + (location.hash || '#portal'));
+  }
   initAccount(); initHousehold(); initPortal(); initTasks();
   if (appApi()) initApplication(); else document.addEventListener('bryc:app-ready', initApplication, {once: true});
   // Whatever page opened before this script loaded gets checked now.

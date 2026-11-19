@@ -687,3 +687,27 @@ legend{font-weight:600;font-size:.95rem;margin-bottom:10px;padding:0}
 .apply-closed h2{font-size:1.9rem;margin-bottom:10px}
 .apply-closed p{color:var(--ink-2)}
 .apply-closed .actions{margin-top:16px}
+
+/* Student-started applications. Students fill in steps 1-3, then step 4 asks only
+   who their parent/guardian is; that parent/guardian finishes with the student's
+   own answers locked. */
+#apply.student-mode .wizard-step[data-step="3"] > :not(h2):not(.handoff){display:none}
+#apply.student-mode .wizard-milestones li:last-child{display:none}
+.handoff-lead{background:var(--pink-soft);border-radius:12px;padding:14px 16px;color:var(--ink);margin:0 0 18px}
+.handoff-sent{color:var(--ink-2);font-size:.95rem;margin:14px 0 0}
+.locked-note{background:var(--surface);border-left:4px solid var(--pink);border-radius:10px;padding:12px 16px;color:var(--ink-2);margin:0 0 16px}
+label.locked textarea,label.locked input[type="text"]{background:var(--surface);color:var(--ink-2)}
+label.locked input[type="radio"]{cursor:not-allowed}
+.saved-file{display:block;margin-top:6px;color:#14532d;font-weight:600}
+.invite-list{display:grid;gap:12px;margin:0 0 18px}
+.invite-card{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;background:#fff;color:var(--ink);border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:16px;padding:18px 22px}
+.invite-card p{margin:4px 0 0;color:var(--ink-2)}
+.student-home,.role-card{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:20px;padding:24px 26px;box-shadow:0 20px 60px rgba(22,22,22,.07)}
+.student-home h2,.role-card h2{margin:0 0 12px}
+.student-home p,.role-card p{color:var(--ink-2)}
+.student-home .student-home-note{font-size:.9rem;color:var(--muted)}
+.role-card-actions,.student-home-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+#portal-body[data-mode="student"],#portal-body[data-mode="choose"]{grid-template-columns:minmax(0,760px)}
+#portal-body[data-mode="student"] .family-only,#portal-body[data-mode="choose"] .family-only{display:none!important}
+.signup-role{margin:0 0 14px;padding:0;border:0}
+@media(max-width:600px){.student-home,.role-card{padding:20px}.invite-card{padding:16px 18px}}

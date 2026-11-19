@@ -29,6 +29,18 @@ const PORTAL = {
   householdPrefix: 'HH-',
   maxDraftChars: 45000,
 
+  // Students can start their own application. They invite a parent/guardian by
+  // email, who signs in with that same address, finishes, signs, and submits.
+  // These answers stay the student's: [answer name, application column]. The
+  // parent/guardian sees them read-only, and RAM HQ keeps the student's version.
+  studentOwned: [['comfort', 'Short Response #1'], ['growth', 'Short Response #2'], ['support', 'Short Response #3'],
+    ['studentCertification', 'Student Certification'], ['studentSignature', 'Student Signature']],
+
+  // Unsubmitted applications are deleted after July 31 of their school year.
+  draftsKeptUntil: '07-31',
+  // How many times a student can send (or resend) their application to a parent/guardian.
+  maxInvites: 5,
+
   // When each school year takes applications (Central time, whole days).
   // opens/closes are the first and last days; seniorsClose is the last day for
   // students who will be in 12th grade that year. Add next year's row here.
@@ -102,9 +114,10 @@ const PORTAL = {
   headers: {
     HOUSEHOLDS: ['Household ID', 'Account UID', 'Account Email', 'Account Holder', 'Guardian First Name', 'Guardian Last Name',
       'Guardian Relationship', 'Guardian Phone', 'Guardian Email', 'Street Address', 'Apartment or Unit', 'City', 'State',
-      'ZIP Code', 'Parish or County', 'Created', 'Updated'],
+      'ZIP Code', 'Parish or County', 'Created', 'Updated', 'Email Confirmed By Invite'],
     PORTAL_DRAFTS: ['Student Key', 'Household ID', 'Student First Name', 'Student Last Name', 'Program Year', 'Draft',
-      'Created', 'Updated', 'Submitted At', 'BRYC ID'],
+      'Created', 'Updated', 'Submitted At', 'BRYC ID', 'Started By', 'Student Account UID', 'Student Account Email',
+      'Invite First Name', 'Invite Last Name', 'Invite Email', 'Invite Token', 'Invite Sent At', 'Guardian Accepted At', 'Saved Uploads', 'Invites Sent'],
     EMAIL_LOG: ['Sent At', 'Type', 'To', 'Subject', 'BRYC ID', 'Household ID', 'Result']
   },
 
@@ -134,7 +147,8 @@ function handlePortal(payload) {
     const user = verifyUser(payload.idToken);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const actions = { load: portalLoad, saveHousehold: portalSaveHousehold, saveDraft: portalSaveDraft,
-      submitApplication: portalSubmitApplication, submitTask: portalSubmitTask };
+      submitApplication: portalSubmitApplication, submitTask: portalSubmitTask,
+      inviteGuardian: portalInviteGuardian, acceptInvite: portalAcceptInvite };
     const action = actions[payload.action];
     if (!action) throw new PortalError('Unknown request.');
 
@@ -206,28 +220,29 @@ function portalSaveHousehold(ss, user, payload) {
 
 
 // Saves application progress. A new student gets a key the first time.
+// Accounts without a household are students saving their own application.
 function portalSaveDraft(ss, user, payload) {
 
-  const household = requireHousehold(ss, user);
-  const draft = JSON.stringify(payload.answers || {});
-  if (draft.length > PORTAL.maxDraftChars) throw new PortalError('This application is too long to save. Please shorten your answers.');
+  const household = findHousehold(ss, user);
+  if (!household) return saveStudentDraft(ss, user, payload);
 
   const names = cleanPortalFields(payload.fields || {}, ['Student First Name', 'Student Last Name', 'Program Year']);
-
   let studentKey = cleanValue(payload.studentKey);
 
   withLock(() => {
-    const sheet = portalSheet(ss, PORTAL.draftsSheet);
+    const sheet = draftsSheet(ss);
     const now = new Date();
 
     if (studentKey) {
       const found = findOwnedDraft(sheet, studentKey, household);
       if (!isBlank(found.values['Submitted At'])) throw new PortalError('This application was already submitted.');
+      const draft = draftText(keepStudentOwned(found.values, payload.answers));
       writeRow(sheet, found.row, Object.assign({}, names, { Draft: draft, Updated: now }));
     } else {
-      studentKey = 'S-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+      const draft = draftText(payload.answers);
+      studentKey = newStudentKey();
       appendByHeader(sheet, Object.assign({}, names, {
-        'Student Key': studentKey, 'Household ID': household['Household ID'], Draft: draft, Created: now, Updated: now
+        'Student Key': studentKey, 'Household ID': household['Household ID'], 'Started By': 'Parent/guardian', Draft: draft, Created: now, Updated: now
       }));
     }
   });
@@ -236,13 +251,169 @@ function portalSaveDraft(ss, user, payload) {
 }
 
 
+// A student's own application: one per student account. They can change it
+// until their parent/guardian opens it.
+function saveStudentDraft(ss, user, payload) {
+
+  const names = cleanPortalFields(payload.fields || {}, ['Student First Name', 'Student Last Name', 'Program Year']);
+  const draft = draftText(payload.answers);
+  let studentKey = '';
+
+  withLock(() => {
+    const sheet = draftsSheet(ss);
+    const found = findRow(sheet, 'Student Account UID', user.uid);
+    const now = new Date();
+
+    if (found) {
+      checkStudentCanEdit(found.values);
+      studentKey = found.values['Student Key'];
+      writeRow(sheet, found.row, Object.assign({}, names, { Draft: draft, Updated: now }));
+      return;
+    }
+    if (payload.role !== 'student') throw new PortalError('Please add your household information first.');
+    studentKey = newStudentKey();
+    appendByHeader(sheet, Object.assign({}, names, {
+      'Student Key': studentKey, 'Household ID': '', 'Started By': 'Student', 'Student Account UID': user.uid,
+      'Student Account Email': user.email, Draft: draft, Created: now, Updated: now
+    }));
+  });
+
+  return { studentKey: studentKey };
+}
+
+
+function checkStudentCanEdit(draft) {
+
+  if (!isBlank(draft['Submitted At'])) throw new PortalError('Your application was already submitted.');
+  if (!isBlank(draft['Guardian Accepted At'])) {
+    throw new PortalError('Your parent/guardian is finishing your application now, so it can no longer be changed here.');
+  }
+}
+
+
+// A student sends their application to a parent/guardian. Their documents are
+// saved now, because the parent/guardian finishes on their own device.
+function portalInviteGuardian(ss, user, payload) {
+
+  if (findHousehold(ss, user)) throw new PortalError('Only a student account can send an application to a parent/guardian.');
+
+  const guardian = cleanPortalFields(payload.guardian, ['First Name', 'Last Name', 'Email']);
+  const email = cleanValue(guardian.Email).toLowerCase();
+  if (isBlank(guardian['First Name']) || isBlank(guardian['Last Name'])) throw new PortalError("Please enter your parent/guardian's first and last name.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new PortalError("Please enter your parent/guardian's email address.");
+  if (email === user.email) throw new PortalError("Please use your parent/guardian's own email address, not yours.");
+  const answers = payload.answers || {};
+  if (PORTAL.studentOwned.some(([name]) => isBlank(cleanValue(answers[name]))) || normalizeText(answers.studentCertification) !== 'yes') {
+    throw new PortalError('Please answer the three short questions, agree to the certification, and sign before sending your application.');
+  }
+
+  saveStudentDraft(ss, user, Object.assign({}, payload, { role: 'student' }));
+  const token = Utilities.getUuid().replace(/-/g, '');
+  let student = null;
+
+  withLock(() => {
+    const sheet = draftsSheet(ss);
+    if (readObjects(sheet).some(d => cleanValue(d['Student Account Email']).toLowerCase() === email)) {
+      throw new PortalError("That email belongs to a student account. Please use your parent/guardian's email address.");
+    }
+    const found = findRow(sheet, 'Student Account UID', user.uid);
+    checkStudentCanEdit(found.values);
+    const sends = Number(found.values['Invites Sent']) || 0;
+    if (sends >= PORTAL.maxInvites) {
+      throw new PortalError("You've sent your application several times already. Please contact BRYC admissions if your parent/guardian isn't getting the email.");
+    }
+    student = found.values;
+
+    const saved = savedUploads(found.values);
+    (payload.files || []).filter(file => CONFIG.uploadColumns.includes(file.column)).forEach(file => {
+      saved[file.column] = { name: cleanValue(file.name), url: saveUpload(file, student) };
+    });
+
+    writeRow(sheet, found.row, {
+      'Invite First Name': guardian['First Name'], 'Invite Last Name': guardian['Last Name'], 'Invite Email': email,
+      'Invite Token': inviteTokenHash(token), 'Invite Sent At': new Date(), 'Saved Uploads': JSON.stringify(saved),
+      'Invites Sent': sends + 1, Updated: new Date()
+    });
+  });
+
+  const first = cleanValue(student['Student First Name']), last = cleanValue(student['Student Last Name']);
+  const sent = sendFamilyEmail(ss, 'Parent/guardian invitation', [email], {
+    subject: `${first} started a BRYC application and needs you to finish it`,
+    greeting: guardian['First Name'],
+    lines: [
+      `${first} ${last} started an application to BRYC, a program that supports students through high school, college or job training, and into a career.`,
+      `As ${first}'s parent/guardian, please add your information, review the application, and sign it. It takes about 10 minutes.`,
+      `Create your BRYC account or sign in with this email address (${email}) so we know it's you.`
+    ],
+    button: `Finish ${first}'s application`,
+    buttonUrl: inviteLink(token)
+  });
+  if (!sent) throw new PortalError(`We saved your application but couldn't email ${email}. Please check the address and try again.`);
+
+  return { state: portalState(ss, user) };
+}
+
+
+// A parent/guardian opens a student's application. The invitation link proves
+// they can read that inbox; without it, their email must already be confirmed.
+function portalAcceptInvite(ss, user, payload) {
+
+  const household = findHousehold(ss, user);
+  if (!household) throw new PortalError('Please add your household information first. Then you can finish the application.');
+
+  const token = cleanValue(payload.token), key = cleanValue(payload.studentKey);
+  let studentKey = '';
+
+  withLock(() => {
+    const sheet = draftsSheet(ss);
+    const rows = readObjects(sheet);
+    const i = token ? rows.findIndex(d => !isBlank(d['Invite Token']) && d['Invite Token'] === inviteTokenHash(token))
+      : rows.findIndex(d => !isBlank(key) && d['Student Key'] === key);
+    if (i < 0) throw new PortalError(token ? 'This invitation link is no longer active. The student may have sent a new one.' : 'We could not find that application.');
+
+    const draft = rows[i];
+    studentKey = draft['Student Key'];
+    if (!isBlank(draft['Guardian Accepted At'])) {
+      if (draft['Household ID'] === household['Household ID']) return;
+      throw new PortalError('Another parent/guardian is already finishing this application.');
+    }
+    if (cleanValue(draft['Invite Email']).toLowerCase() !== user.email) {
+      throw new PortalError(`This invitation was sent to ${maskEmail(draft['Invite Email'])}. Please sign in with that email address to finish the application.`);
+    }
+    if (!token && !user.verified) throw new PortalError('Please open the link in the invitation email we sent you, or confirm your email address first.');
+
+    const now = new Date();
+    writeRow(sheet, i + 2, { 'Household ID': household['Household ID'], 'Guardian Accepted At': now, Updated: now });
+    if (token) {
+      const households = portalSheet(ss, PORTAL.householdsSheet);
+      ensureColumns(households, ['Email Confirmed By Invite']);
+      writeRow(households, findRow(households, 'Account UID', user.uid).row, { 'Email Confirmed By Invite': user.email });
+    }
+  });
+
+  return { studentKey: studentKey, state: portalState(ss, user) };
+}
+
+
 function portalSubmitApplication(ss, user, payload) {
 
-  if (!user.verified) throw new PortalError('Please confirm your email address before submitting. Check your inbox for the link we sent.');
+  const household = findHousehold(ss, user);
+  if (!household) {
+    if (findRow(portalSheet(ss, PORTAL.draftsSheet), 'Student Account UID', user.uid)) {
+      throw new PortalError('Your parent/guardian needs to finish and submit your application.');
+    }
+    throw new PortalError('Please add your household information first.');
+  }
+  if (!isVerified(user, household)) throw new PortalError('Please confirm your email address before submitting. Check your inbox for the link we sent.');
 
-  const household = requireHousehold(ss, user);
   const studentKey = cleanValue(payload.studentKey);
   const fields = cleanPayloadFields(payload.fields);
+
+  // A student-started application keeps the student's own answers and the
+  // documents they sent with it.
+  const before = findOwnedDraft(portalSheet(ss, PORTAL.draftsSheet), studentKey, household).values;
+  const fromStudent = before['Started By'] === 'Student';
+  if (fromStudent) Object.assign(fields, studentOwnedFields(before));
 
   const windows = applicationWindows();
   if (!windows.open.includes(fields['Program Year'])) {
@@ -268,6 +439,7 @@ function portalSubmitApplication(ss, user, payload) {
     (payload.files || [])
       .filter(file => CONFIG.uploadColumns.includes(file.column))
       .forEach(file => { fields[file.column] = saveUpload(file, fields); });
+    Object.entries(savedUploads(found.values)).forEach(([column, file]) => { if (isBlank(fields[column])) fields[column] = file.url; });
 
     appendByHeader(ss.getSheetByName(CONFIG.forms.application.sheet), fields);
     writeRow(drafts, found.row, {
@@ -286,6 +458,20 @@ function portalSubmitApplication(ss, user, payload) {
     button: 'View your portal',
     householdId: household['Household ID']
   });
+
+  const studentEmail = cleanValue(before['Student Account Email']);
+  if (fromStudent && studentEmail) {
+    sendFamilyEmail(ss, 'Application submitted (student)', [studentEmail], {
+      subject: 'Your BRYC application was submitted',
+      greeting: fields['Student First Name'],
+      lines: [
+        `${household['Guardian First Name'] || 'Your parent/guardian'} finished and submitted your BRYC application for the ${displayYear(fields['Program Year'])} school year.`,
+        'We will keep your parent/guardian updated by email and in their BRYC portal.'
+      ],
+      button: 'View your portal',
+      householdId: household['Household ID']
+    });
+  }
 
   return { state: portalState(ss, user) };
 }
@@ -444,12 +630,25 @@ function portalState(ss, user) {
 
   const household = findHousehold(ss, user);
   const windows = applicationWindows();
-  const state = { account: { email: user.email, verified: user.verified }, household: household, students: [],
+  const state = { account: { email: user.email, verified: isVerified(user, household) }, household: household,
+    role: household ? 'family' : null, students: [], invites: [],
     openProgramYears: windows.open, seniorsClosed: windows.seniorsClosed, nextOpening: windows.next };
-  if (!household) return state;
 
-  const drafts = readObjects(portalSheet(ss, PORTAL.draftsSheet))
-    .filter(d => d['Household ID'] === household['Household ID']);
+  const all = readObjects(portalSheet(ss, PORTAL.draftsSheet));
+  // Students who asked this email to finish their application. Only shown once the
+  // email is confirmed, so signing up with someone else's address reveals nothing.
+  if (isVerified(user, household)) state.invites = all.filter(d => cleanValue(d['Invite Email']).toLowerCase() === user.email
+    && isBlank(d['Guardian Accepted At']) && isBlank(d['Submitted At']))
+    .map(d => ({ studentKey: d['Student Key'], firstName: cleanValue(d['Student First Name']),
+      lastName: cleanValue(d['Student Last Name']), programYear: cleanValue(d['Program Year']) }));
+
+  if (!household) {
+    const mine = all.find(d => !isBlank(d['Student Account UID']) && cleanValue(d['Student Account UID']) === user.uid);
+    if (mine) { state.role = 'student'; state.application = studentAccountView(mine); }
+    return state;
+  }
+
+  const drafts = all.filter(d => d['Household ID'] === household['Household ID']);
   const master = readObjects(ss.getSheetByName(CONFIG.masterSheet));
   const labels = familyLabels(ss);
 
@@ -477,6 +676,10 @@ function studentView(draft, master, labels, ss, household) {
     decision: '',
     tasks: []
   };
+  if (draft['Started By'] === 'Student') {
+    view.fromStudent = true;
+    view.savedUploads = uploadNames(draft);
+  }
 
   if (!view.submittedAt) return view;
 
@@ -1040,6 +1243,177 @@ function sendFamilyEmail(ss, type, to, msg) {
 /* =========================================================
    HELPERS
    ========================================================= */
+
+// Unsubmitted applications are kept until July 31 of their school year (for
+// 2026-2027, July 31, 2027), then deleted with any documents a student sent.
+// Runs with the background job, at most once a day.
+function cleanUpOldDrafts(ss) {
+
+  const props = PropertiesService.getScriptProperties();
+  const today = portalToday();
+  if (props.getProperty('DRAFTS_CLEANED_ON') === today) return 0;
+
+  const sheet = ss.getSheetByName(PORTAL.draftsSheet);
+  let removed = 0;
+  if (sheet && sheet.getLastRow() > 1) {
+    const rows = readObjects(sheet);
+    // Bottom up, so deleting a row never moves one still to check.
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const draft = rows[i];
+      if (!isBlank(draft['Submitted At']) || today <= draftKeptUntil(draft)) continue;
+      Object.values(savedUploads(draft)).forEach(trashUpload);
+      sheet.deleteRow(i + 2);
+      removed++;
+    }
+  }
+
+  props.setProperty('DRAFTS_CLEANED_ON', today);
+  if (removed) console.log(`Deleted ${removed} unsubmitted application(s) past July 31 of their school year.`);
+  return removed;
+}
+
+
+// The last day an unsubmitted application is kept, as yyyy-MM-dd.
+function draftKeptUntil(draft) {
+
+  const year = cleanValue(draft['Program Year']).match(/^(\d{4})-(\d{4})$/);
+  if (year) return year[2] + '-' + PORTAL.draftsKeptUntil;
+
+  // No school year picked yet: the school year it was started in.
+  const created = draft.Created instanceof Date ? draft.Created : new Date(draft.Created);
+  if (isNaN(created.getTime())) return '9999-12-31';
+  const started = Utilities.formatDate(created, PORTAL.timeZone, 'yyyy-MM-dd');
+  const y = Number(started.slice(0, 4));
+  return (started.slice(5) > PORTAL.draftsKeptUntil ? y + 1 : y) + '-' + PORTAL.draftsKeptUntil;
+}
+
+
+function trashUpload(file) {
+
+  const id = (String((file && file.url) || '').match(/\/d\/([\w-]{20,})/) || [])[1];
+  if (!id) return;
+  try { DriveApp.getFileById(id).setTrashed(true); } catch (err) { console.error('Could not trash upload ' + id + ': ' + err.message); }
+}
+
+
+// What a student account sees: its one application and where it stands.
+function studentAccountView(draft) {
+
+  let answers = {};
+  try { answers = JSON.parse(draft.Draft || '{}'); } catch (e) { answers = {}; }
+  const status = !isBlank(draft['Submitted At']) ? 'submitted' : !isBlank(draft['Guardian Accepted At']) ? 'guardian'
+    : !isBlank(draft['Invite Email']) ? 'invited' : 'editing';
+
+  return {
+    studentKey: draft['Student Key'],
+    firstName: cleanValue(draft['Student First Name']),
+    lastName: cleanValue(draft['Student Last Name']),
+    programYear: cleanValue(draft['Program Year']),
+    updated: isoDate(draft.Updated),
+    submittedAt: isoDate(draft['Submitted At']),
+    status: status,
+    answers: ['editing', 'invited'].includes(status) ? answers : null,
+    savedUploads: uploadNames(draft),
+    invite: isBlank(draft['Invite Email']) ? null : {
+      firstName: cleanValue(draft['Invite First Name']), lastName: cleanValue(draft['Invite Last Name']),
+      email: cleanValue(draft['Invite Email']), sentAt: isoDate(draft['Invite Sent At'])
+    }
+  };
+}
+
+
+// A confirmed Firebase email, or the address a parent/guardian proved by opening
+// a student's invitation link.
+function isVerified(user, household) {
+
+  return user.verified === true || (!!household && cleanValue(household['Email Confirmed By Invite']).toLowerCase() === user.email);
+}
+
+
+// PORTAL_DRAFTS with every column the portal writes, added the first time.
+function draftsSheet(ss) {
+
+  const sheet = portalSheet(ss, PORTAL.draftsSheet);
+  ensureColumns(sheet, PORTAL.headers.PORTAL_DRAFTS);
+  return sheet;
+}
+
+
+function newStudentKey() {
+
+  return 'S-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+}
+
+
+function draftText(answers) {
+
+  const draft = JSON.stringify(answers || {});
+  if (draft.length > PORTAL.maxDraftChars) throw new PortalError('This application is too long to save. Please shorten your answers.');
+  return draft;
+}
+
+
+// A parent/guardian's save never changes the student-owned answers.
+function keepStudentOwned(draft, answers) {
+
+  const next = Object.assign({}, answers || {});
+  if (draft['Started By'] !== 'Student') return next;
+  let saved = {};
+  try { saved = JSON.parse(draft.Draft || '{}'); } catch (e) { saved = {}; }
+  PORTAL.studentOwned.forEach(([name]) => { if (name in saved) next[name] = saved[name]; else delete next[name]; });
+  return next;
+}
+
+
+// The student's own answers, by application column, for a submission.
+function studentOwnedFields(draft) {
+
+  let saved = {};
+  try { saved = JSON.parse(draft.Draft || '{}'); } catch (e) { saved = {}; }
+  const out = {};
+  PORTAL.studentOwned.forEach(([name, column]) => {
+    const value = cleanValue(saved[name]);
+    out[column] = name === 'studentCertification' && value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+  });
+  return cleanPayloadFields(out);
+}
+
+
+function savedUploads(draft) {
+
+  try { return JSON.parse(draft['Saved Uploads'] || '{}') || {}; } catch (e) { return {}; }
+}
+
+
+// Column -> file name, for the portal to show what is already attached.
+function uploadNames(draft) {
+
+  const names = {};
+  Object.entries(savedUploads(draft)).forEach(([column, file]) => { names[column] = cleanValue(file && file.name) || 'Attached'; });
+  return names;
+}
+
+
+// Only a hash is stored, so the sheet never holds a working link.
+function inviteTokenHash(token) {
+
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token)));
+}
+
+
+function inviteLink(token) {
+
+  return PORTAL.portalUrl.replace('#portal', '?invite=' + encodeURIComponent(token) + '#portal');
+}
+
+
+// j***@example.com
+function maskEmail(email) {
+
+  const [name, domain] = cleanValue(email).split('@');
+  return domain ? name.charAt(0) + '***@' + domain : 'another address';
+}
+
 
 function findHousehold(ss, user) {
 

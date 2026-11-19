@@ -23,6 +23,10 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); 
   await shot('01-account');
   // Signup validation
   await page.click('#signup-form button[type=submit]');
+  ok((await page.textContent('#account-message')).includes('student or a parent/guardian'), 'signup asks who is creating the account');
+  await page.check('#signup-form [name=role][value=guardian]');
+  ok(await page.isVisible('[data-role-note="guardian"]') && !(await page.isVisible('[data-role-note="student"]')), 'parent/guardian note shows');
+  await page.click('#signup-form button[type=submit]');
   ok((await page.textContent('#account-message')).includes('highlighted'), 'signup validation');
   await page.fill('#signup-form [name=email]', 'casey@example.com');
   await page.fill('#signup-form [name=password]', 'password1');
