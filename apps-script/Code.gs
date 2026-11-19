@@ -391,6 +391,11 @@ function processPending() {
     } catch (err) {
       console.error('Income reviews: ' + err.message);
     }
+    try {
+      cleanUpOldDrafts(ss);
+    } catch (err) {
+      console.error('Draft cleanup: ' + err.message);
+    }
 
   } finally {
 

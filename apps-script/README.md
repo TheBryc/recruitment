@@ -74,6 +74,24 @@ To review, open INCOME_RAW and fill in the student's row:
 
 **Open program years** come from the application dates in `Portal.gs`. See [Application dates](#application-dates).
 
+### Student-started applications
+
+At sign-up, people choose **I'm a student** or **I'm a parent/guardian**. Parent/guardian accounts work as described above.
+
+1. **The student fills in their part:** Student information, Academic records (with their report card), and Get to know you (the three short responses, the certification, and their signature). It saves as they go.
+2. **Step 4 asks only for their parent/guardian's name and email.** **Send to my parent/guardian** uploads their documents to the upload folder and emails the parent/guardian a link ("Riley started a BRYC application and needs you to finish it"). The student can keep making changes, or resend to a different email (up to five sends in all, set by `maxInvites`), until the parent/guardian opens it.
+3. **The parent/guardian opens the link and signs in or creates an account with that same email.** Opening the link proves it's their inbox, so they don't need the separate confirmation email. Without the link, they can open it from the invitation card in their portal once their email is confirmed. Signing in with a different email is refused.
+4. **They add their household information, review, sign, and submit.** They can change anything except the three short responses, the certification, and the student's signature. Those stay read-only, and RAM HQ always records the student's version. The report card the student sent counts as attached.
+5. **Only a parent/guardian can submit.** The family gets the usual confirmation, and the student gets an email saying it was submitted.
+
+The application then appears in the parent/guardian's household like any other, and decisions and next steps go to the parent/guardian. The student's portal shows where it stands: Your part, Sent to parent/guardian, Parent/guardian finishing, Submitted.
+
+**Columns added automatically:** PORTAL_DRAFTS gets **Started By** (Student or Parent/guardian), **Student Account UID/Email**, **Invite First Name/Last Name/Email**, **Invite Token** (stored only as a hash), **Invite Sent At**, **Invites Sent**, **Guardian Accepted At**, and **Saved Uploads**. Invitation cards in the portal only appear for a confirmed email, so signing up with someone else's address reveals nothing. HOUSEHOLDS gets **Email Confirmed By Invite**. Every invitation is logged in EMAIL_LOG.
+
+### Unfinished applications
+
+Unsubmitted applications are kept until **July 31 of the school year they are for** (a 2026–2027 application until July 31, 2027), then the background job deletes the PORTAL_DRAFTS row and moves any documents a student sent with it to the Drive trash. It checks once a day. Submitted applications are never deleted. To change the date, edit `draftsKeptUntil` in `Portal.gs`. The FAQ tells families the same thing.
+
 ### Portal setup (one time)
 
 1. **Firebase sign-in.** In the [Firebase console](https://console.firebase.google.com/) for `bryc-recruitment`, go to **Authentication → Sign-in method**, add **Email/Password**, and turn it on (leave "Email link" off). Then go to **Authentication → Settings → Authorized domains** and make sure `thebryc.github.io` is listed.
@@ -124,7 +142,7 @@ When an interest form is processed (within 15 minutes), the family gets a "Thank
 
 ## Tests
 
-`test/code.test.mjs` and `test/portal.test.mjs` run the scripts against an in-memory copy of RAM HQ's headers:
+`test/code.test.mjs`, `test/portal.test.mjs`, and `test/student.test.mjs` run the scripts against an in-memory copy of RAM HQ's headers:
 
 ```
 cd apps-script/test && node --test

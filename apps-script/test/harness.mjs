@@ -38,6 +38,7 @@ export class Sheet {
   set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
   getRange(r, c, nr = 1, nc = 1) { return new Range(this, r, c, nr, nc); }
   appendRow(values) { const r = this.getLastRow() + 1; values.forEach((v, i) => this.set(r, i + 1, v)); }
+  deleteRow(r) { this.rows.splice(r - 1, 1); }
 }
 
 export class Range {
@@ -70,14 +71,14 @@ export function createEnv() {
   const sheets = {}; let id = 1;
   for (const [name, headers] of Object.entries(HEADERS)) sheets[name] = new Sheet(name, id++, headers);
   sheets.LISTS = new Sheet('LISTS', id++); LISTS.forEach(r => sheets.LISTS.appendRow(r));
-  const savedFiles = [], mails = [], cache = new Map(), props = {};
+  const savedFiles = [], mails = [], cache = new Map(), props = {}, trashed = [];
   const ctx = {
     console: {error() {}, warn() {}, log() {}},
     SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: n => sheets[n] || null, insertSheet: n => (sheets[n] = new Sheet(n, id++)), getUrl: () => 'https://sheet' }), flush() {} },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
     ContentService: { MimeType: {JSON: 'json'}, createTextOutput: t => ({ setMimeType: () => ({ body: JSON.parse(t) }) }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => ({INCOME_FOLDER_ID: 'income-folder', UPLOAD_FOLDER_ID: 'folder123', INFO_SHEET_URL: props.INFO_SHEET_URL})[k] ?? null }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : ({INCOME_FOLDER_ID: 'income-folder', UPLOAD_FOLDER_ID: 'folder123'})[k]) ?? null, setProperty: (k, v) => { props[k] = v; } }) },
     Utilities: {
       base64Decode: d => Buffer.from(d, 'base64'), newBlob: (bytes, type, name) => ({bytes, type, name}),
       DigestAlgorithm: {SHA_256: 'sha256'}, computeDigest: (alg, s) => [...createHash(alg).update(s).digest()],
@@ -85,7 +86,8 @@ export function createEnv() {
       formatDate: (date, tz, fmt) => { if (fmt !== 'yyyy-MM-dd') throw new Error('harness formatDate only knows yyyy-MM-dd');
         return new Intl.DateTimeFormat('en-CA', {timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'}).format(date); }
     },
-    DriveApp: { getFolderById: folder => ({ createFile: blob => { savedFiles.push(Object.assign({folder}, blob)); return { getUrl: () => 'https://drive/' + blob.name, getSize: () => blob.bytes.length }; } }) },
+    DriveApp: { getFolderById: folder => ({ createFile: blob => { savedFiles.push(Object.assign({folder}, blob)); return { getUrl: () => 'https://drive/' + blob.name, getSize: () => blob.bytes.length }; } }),
+      getFileById: id => ({ setTrashed: v => { if (v) trashed.push(id); } }) },
     UrlFetchApp: { fetch: (url, opts) => {
       let user = null;
       try { user = JSON.parse(Buffer.from(JSON.parse(opts.payload).idToken, 'base64').toString()); } catch (e) { user = null; }
@@ -99,5 +101,5 @@ export function createEnv() {
   for (const file of ['../Code.gs', '../Portal.gs']) vm.runInContext(readFileSync(new URL(file, import.meta.url), 'utf8'), ctx);
   // Tests run on March 1, 2027 unless they set another day with PORTAL.clock.
   vm.runInContext("PORTAL.clock = '2027-03-01T12:00:00-06:00'", ctx);
-  return {sheets, ctx, savedFiles, mails, props};
+  return {sheets, ctx, savedFiles, mails, props, trashed};
 }

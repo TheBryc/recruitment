@@ -265,6 +265,11 @@ const relative=app.elements.namedItem('brycRelative');const relativeNames=app.el
 function syncRelative(){relativeNames.required=relative.checked;relativeNames.closest('label').hidden=!relative.checked;if(!relative.checked)relativeNames.value=''}
 relative.addEventListener('change',syncRelative);syncRelative();
 let step=0,steps=$$('#application-demo .wizard-step');const names=['Student Information','Academic Records','About You','Guardian & Address','Review'];
+// mode: 'family' (a parent/guardian applying), 'student' (a student's own part; ends by
+// sending it to a parent/guardian), or 'finish' (a parent/guardian finishing a student's
+// application, with the student's own answers locked). savedFiles: column -> file name.
+let mode='family',savedFiles={};const STUDENT_OWNED=['comfort','growth','support','studentCertification','studentSignature'];
+const lastStep=()=>mode==='student'?3:steps.length-1,stepCount=()=>mode==='student'?4:steps.length;
 function labelFor(el){let label=el.closest('label');let text=label?.querySelector('.question-title')?.textContent||label?.textContent||el.getAttribute('aria-label')||el.name||'This field';return text.trim().replace(/\s+/g,' ').slice(0,90)}
 function clearErrors(){app.querySelectorAll('.field-error').forEach(e=>e.remove());app.querySelectorAll('[aria-invalid="true"]').forEach(e=>e.removeAttribute('aria-invalid'));const n=$('#wizard-notice');if(n)n.textContent=''}
 function error(el,message){el.setAttribute('aria-invalid','true');const note=document.createElement('div');note.className='field-error';note.setAttribute('role','alert');note.textContent=message;el.insertAdjacentElement('afterend',note);return el}
@@ -285,9 +290,9 @@ function validateStep(i){clearErrors();const panel=steps[i];if(!panel)return tru
   const school=app.querySelector('[data-school-control="'+(year.value==='2027-2028'?'futureSchool':'currentSchool')+'"]');if(school){const select=school.querySelector('.school-select');if(!select.value)fail(school.querySelector('.school-search'),'Please choose a school from the suggestions or select “My school isn’t listed.”');else if(select.value===OTHER&&!school.querySelector('.other-school input').value.trim())fail(school.querySelector('.other-school input'),'Please enter the school name.');}
  }
  if(i===1){const g=Number((year.value==='2027-2028'?futureGrade:currentGrade).value);const file=panel.querySelector('input[type="file"]');const self=panel.querySelector('[name="selfReportedGrades"]');
-  if(file&&!file.files.length&&!(g<11&&self?.value.trim()))fail(file,g<11?'Upload a grade report or self-report your grades.':'Please select the requested academic record.');
+  if(file&&!file.files.length&&!savedFiles[file.dataset.col]&&!(g<11&&self?.value.trim()))fail(file,g<11?'Upload a grade report or self-report your grades.':'Please select the requested academic record.');
   const taken=panel.querySelector('[name="actTaken"]');if(taken&&!taken.value)fail(taken,'Please select your ACT status.');
-  const report=panel.querySelector('[name="actReport"]');if(taken?.value==='Yes'&&report&&!report.files.length)fail(report,'Please select your ACT score report, if available; otherwise update your ACT status.');
+  const report=panel.querySelector('[name="actReport"]');if(taken?.value==='Yes'&&report&&!report.files.length&&!savedFiles['ACT Report'])fail(report,'Please select your ACT score report, if available; otherwise update your ACT status.');
  }
  if(i===2){const radios=[...panel.querySelectorAll('[name="studentCertification"]')];const checked=radios.find(r=>r.checked);if(!checked)fail(radios[0],'Please select your certification response.');else if(checked.value.toLowerCase()!=='yes')fail(checked,'You must agree to the certification to continue.');}
  if(i===3){const a=panel.querySelector('[name="policyAck"]');if(a&&!a.checked)fail(a,'Please acknowledge BRYC policies.');['homeZip','g2Zip'].forEach(n=>{const zip=panel.querySelector('[name="'+n+'"]');if(zip?.value&&!zip.closest('[hidden]')&&!/^\d{5}(?:-\d{4})?$/.test(zip.value.trim()))fail(zip,'Please enter a valid ZIP code.');});}
@@ -303,8 +308,8 @@ function review(){const target=$('#application-review');target.replaceChildren()
  let row=target.querySelector('[data-review-key="'+CSS.escape(k)+'"]');if(!row){row=document.createElement('div');row.className='review-row';row.dataset.reviewKey=k;const title=document.createElement('strong');title.textContent=label;const data=document.createElement('span');row.append(title,data);target.append(row)}
  const node=row.querySelector('span');node.textContent+=(node.textContent?', ':'')+value;
  }}
-function showStep(){steps.forEach((s,i)=>s.classList.toggle('active',i===step));$('#wizard-count').textContent=`Step ${step+1} of ${steps.length} · ${names[step]}`;const prev=$('#wizard-back'),next=$('#wizard-next');prev.disabled=step===0;next.textContent=step===steps.length-1?(SUBMIT_URL?'Submit application':'Preview complete (no submission)'):'Continue →';const milestones=$$('#apply .wizard-milestones li');milestones.forEach((x,i)=>{x.classList.toggle('active',i===step);x.classList.toggle('done',i<step);if(i===step)x.setAttribute('aria-current','step');else x.removeAttribute('aria-current')});$('#wizard-fill').style.width=((step+1)/steps.length*100)+'%';if(step===steps.length-1)review();clearErrors();const y=$('#apply').getBoundingClientRect().top+window.scrollY-80;window.scrollTo({top:Math.max(0,y),behavior:'instant'});}
-$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(step===steps.length-1){if(window.BRYCPortal?.active){window.BRYCPortal.submitApplication($('#wizard-notice'),$('#wizard-next'));return;}sendForm('application',app,$('#wizard-notice'),$('#wizard-next'),'Your application was submitted. We will be in touch with next steps.');return;}if(!validateStep(step))return;step++;showStep()});showStep();
+function showStep(){steps.forEach((s,i)=>s.classList.toggle('active',i===step));$('#wizard-count').textContent=`Step ${step+1} of ${stepCount()} · ${mode==='student'&&step===3?'Parent/guardian':names[step]}`;const prev=$('#wizard-back'),next=$('#wizard-next');prev.disabled=step===0;next.textContent=step===lastStep()?(mode==='student'?'Send to my parent/guardian':SUBMIT_URL?'Submit application':'Preview complete (no submission)'):'Continue →';const milestones=$$('#apply .wizard-milestones li');milestones.forEach((x,i)=>{x.classList.toggle('active',i===step);x.classList.toggle('done',i<step);if(i===step)x.setAttribute('aria-current','step');else x.removeAttribute('aria-current')});$('#wizard-fill').style.width=((step+1)/stepCount()*100)+'%';if(step===steps.length-1)review();clearErrors();const y=$('#apply').getBoundingClientRect().top+window.scrollY-80;window.scrollTo({top:Math.max(0,y),behavior:'instant'});}
+$('#wizard-back')?.addEventListener('click',()=>{if(step>0)step--;showStep()});$('#wizard-next')?.addEventListener('click',()=>{if(mode==='student'&&step===lastStep()){window.BRYCPortal?.sendToGuardian($('#wizard-notice'),$('#wizard-next'));return;}if(step===steps.length-1){if(window.BRYCPortal?.active){window.BRYCPortal.submitApplication($('#wizard-notice'),$('#wizard-next'));return;}sendForm('application',app,$('#wizard-notice'),$('#wizard-next'),'Your application was submitted. We will be in touch with next steps.');return;}if(!validateStep(step))return;step++;showStep()});showStep();
 // Application state for portal drafts. Answers are keyed by field name, so a
 // saved draft restores exactly; files can't be saved and are re-attached.
 function setSchool(wrapper,value,otherText){const sel=wrapper.querySelector('.school-select'),search=wrapper.querySelector('.school-search');
@@ -319,7 +324,7 @@ function serialize(){const out={};
  return out;}
 // Yes/no questions with data-reveal show or hide their follow-up questions.
 function syncReveals(){app.querySelectorAll('input[type="radio"][data-reveal]').forEach(r=>{const t=$(r.dataset.reveal);if(t)t.hidden=app.elements.namedItem(r.name).value!=='yes';});}
-function resetApp(){app.reset();syncReveals();app.querySelectorAll('[data-school-control]').forEach(w=>setSchool(w,''));updateYear();syncRelative();
+function resetApp(){app.reset();setMode('family');savedFiles={};markSaved();syncReveals();app.querySelectorAll('[data-school-control]').forEach(w=>setSchool(w,''));updateYear();syncRelative();
  app.querySelectorAll('select[data-other]').forEach(el=>el.dispatchEvent(new Event('change')));
  if(year.options.length===2){year.selectedIndex=1;updateYear();}
  step=0;showStep();clearErrors();}
@@ -333,6 +338,20 @@ function restore(a){resetApp();a=a||{};
   else el.value=v;});
  syncRelative();syncReveals();app.querySelectorAll('select[data-other],select[name="actTaken"]').forEach(el=>el.dispatchEvent(new Event('change')));
  step=0;showStep();clearErrors();}
-window.BRYCApp={form:app,serialize,restore,reset:resetApp,setOpenYears};
+// Student mode hides the parent/guardian questions behind a short "send it to them"
+// form. Finish mode keeps the student's own answers read-only.
+function setMode(next){mode=next||'family';$('#apply')?.classList.toggle('student-mode',mode==='student');const handoff=$('#student-handoff');if(handoff)handoff.hidden=mode!=='student';
+ STUDENT_OWNED.forEach(n=>{const f=app.elements.namedItem(n);if(!f)return;(f instanceof RadioNodeList?[...f]:[f]).forEach(el=>{
+  if(el.type==='radio')el.dataset.locked=mode==='finish'?'1':'';else el.readOnly=mode==='finish';el.closest('label')?.classList.toggle('locked',mode==='finish');});});
+ const note=$('#locked-note');if(note)note.hidden=mode!=='finish';showStep();}
+app.addEventListener('click',e=>{if(e.target.dataset?.locked==='1')e.preventDefault();},true);
+app.addEventListener('keydown',e=>{if(e.target.dataset?.locked==='1'&&/^Arrow|^ $/.test(e.key))e.preventDefault();},true);
+// Documents a student already sent: shown under the upload, and they count as attached.
+function markSaved(){app.querySelectorAll('input[type="file"][data-col]').forEach(f=>{let n=f.parentElement.querySelector('.saved-file');const name=savedFiles[f.dataset.col];
+ if(!name){if(n)n.hidden=true;return;}if(!n){n=document.createElement('small');n.className='saved-file';f.insertAdjacentElement('afterend',n);}
+ n.hidden=false;n.textContent=`Attached: ${name}. Choose a file only if you want to replace it.`;});}
+function setSavedFiles(map){savedFiles=Object.assign({},map||{});markSaved();}
+new MutationObserver(markSaved).observe($('#academic-branch'),{childList:true});
+window.BRYCApp={form:app,serialize,restore,reset:resetApp,setOpenYears,setMode,setSavedFiles,get mode(){return mode;}};
 document.dispatchEvent(new CustomEvent('bryc:app-ready'));
 })();
